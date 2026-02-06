@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getProvider, DEFAULT_PROVIDER } from "@/lib/providers";
+import { callClaudeVision } from "@/lib/claude-code/api-adapter";
 
 interface ImageItem {
   data: string;
@@ -33,16 +34,6 @@ export async function POST(request: NextRequest): Promise<NextResponse<PipelineR
       thinking = false,
     } = await request.json();
 
-    const provider = getProvider(providerId);
-    const visionModel = provider.visionModel;
-
-    if (!provider.supportsVision) {
-      return NextResponse.json({
-        success: false,
-        error: `${provider.name} does not support image input`,
-      });
-    }
-
     // Parse images
     const typedImages = images as ImageItem[];
     const referenceImages = typedImages.filter((img) => img.type === "reference");
@@ -63,26 +54,47 @@ export async function POST(request: NextRequest): Promise<NextResponse<PipelineR
       });
     }
 
-    // Build extra params for providers that support thinking (GLM)
-    const extraParams: Record<string, unknown> = {};
-    if (thinking && providerId === "glm") {
-      extraParams.thinking = { type: "enabled" };
-    }
-
-    // Helper to extract base64 from data URL (GLM needs raw base64)
-    const extractBase64 = (dataUrl: string): string => {
-      if (providerId === "glm") {
-        const base64Match = dataUrl.match(/^data:image\/[^;]+;base64,(.+)$/);
-        return base64Match ? base64Match[1] : dataUrl;
-      }
-      return dataUrl;
-    };
-
     console.log("=== Pipeline Started ===");
     console.log("Provider:", providerId);
     console.log("Reference images:", referenceImages.length);
     console.log("Has persona:", !!personaImage);
     console.log("Has target:", !!targetImage);
+
+    // Build Step 1 prompt (shared by all providers)
+    let step1Prompt = "You are an art director writing detailed visual descriptions for illustration projects. Analyze the images provided and describe the VISUAL ELEMENTS you observe. Do not attempt to identify any people. Focus only on describable visual elements.\n\n";
+    let imageIndex = 1;
+
+    referenceImages.forEach((img) => {
+      step1Prompt += `Image ${imageIndex} (${img.filename}) is a REFERENCE for scene/style/environment. `;
+      imageIndex++;
+    });
+
+    step1Prompt += `Image ${imageIndex} (${personaImage.filename}) is a FACE/APPEARANCE REFERENCE — extract ONLY physical traits from this image, NOT clothing.\n\n`;
+
+    step1Prompt += `Analyze the images and write a detailed visual description covering:
+
+FROM THE FACE/APPEARANCE REFERENCE (Image ${imageIndex}) — describe ONLY these traits:
+- Hair: length, color, texture, style, parting
+- Skin tone and complexion
+- Approximate age range and build
+- Facial hair if any (beard, mustache, stubble)
+- General expression and demeanor
+- DO NOT describe their clothing or accessories — those will come from a different source
+
+FROM THE REFERENCE IMAGES (Images 1-${referenceImages.length}):
+- Environment and setting
+- Lighting quality and direction
+- Art style and visual treatment
+- Composition and camera angle
+- Mood and atmosphere
+
+Write a cohesive visual description that an illustrator could use. Focus on the person's physical appearance traits (NOT their outfit) and the scene elements.`;
+
+    if (text) {
+      step1Prompt += `\n\nAdditional context: ${text}`;
+    }
+
+    step1Prompt += `\n\nOutput ONLY the visual description, nothing else.`;
 
     // ============================================
     // STEP 1: Generate Persona Description
@@ -90,72 +102,67 @@ export async function POST(request: NextRequest): Promise<NextResponse<PipelineR
     const step1Start = Date.now();
     console.log("\n--- Step 1: Describe Persona ---");
 
-    let step1Prompt = "";
-    let imageIndex = 1;
+    let personaDescription: string;
 
-    // Add reference images info
-    referenceImages.forEach((img) => {
-      step1Prompt += `Image ${imageIndex} (${img.filename}) is a REFERENCE image showing the target scene/style/environment. `;
-      imageIndex++;
-    });
+    if (providerId === "claude") {
+      // Claude CLI path
+      const step1Images = [
+        ...referenceImages.map((img) => ({ dataUrl: img.data, label: img.filename })),
+        { dataUrl: personaImage.data, label: personaImage.filename },
+      ];
+      personaDescription = await callClaudeVision(step1Prompt, step1Images);
+    } else {
+      // OpenAI-compatible path
+      const provider = getProvider(providerId);
+      const visionModel = provider.visionModel;
 
-    // Add persona image info
-    step1Prompt += `Image ${imageIndex} (${personaImage.filename}) is the PERSONA - the person whose appearance must be preserved exactly.\n\n`;
+      if (!provider.supportsVision) {
+        return NextResponse.json({
+          success: false,
+          error: `${provider.name} does not support image input`,
+        });
+      }
 
-    step1Prompt += `Create a detailed AI image generation prompt with these requirements:
+      const extraParams: Record<string, unknown> = {};
+      if (thinking && providerId === "glm") {
+        extraParams.thinking = { type: "enabled" };
+      }
 
-1. PRESERVE the persona's COMPLETE appearance from Image ${imageIndex}:
-   - Face, facial features, expression
-   - Body type, skin tone, hair style/color
-   - CLOTHING and accessories they are wearing
-   - All distinctive characteristics
+      const extractBase64 = (dataUrl: string): string => {
+        if (providerId === "glm") {
+          const base64Match = dataUrl.match(/^data:image\/[^;]+;base64,(.+)$/);
+          return base64Match ? base64Match[1] : dataUrl;
+        }
+        return dataUrl;
+      };
 
-2. ONLY take from the reference images (Images 1-${referenceImages.length}):
-   - Scene/environment/background
-   - Lighting and mood
-   - Art style and composition
-   - Camera angle if applicable
+      const step1Content: Array<
+        { type: "text"; text: string } | { type: "image_url"; image_url: { url: string } }
+      > = [{ type: "text", text: step1Prompt }];
 
-3. DO NOT transfer clothing, accessories, or any appearance elements from reference images to the persona
+      referenceImages.forEach((img) => {
+        step1Content.push({
+          type: "image_url",
+          image_url: { url: extractBase64(img.data) },
+        });
+      });
 
-Think of it as: "This exact person WITH their exact outfit, placed into that scene/environment"
-
-First describe the persona's complete appearance including their clothing, then describe the scene/environment they should be placed in.`;
-
-    if (text) {
-      step1Prompt += `\n\nAdditional instructions: ${text}`;
-    }
-
-    step1Prompt += `\n\nOutput ONLY the improved prompt, nothing else.`;
-
-    // Build content for step 1
-    const step1Content: Array<
-      { type: "text"; text: string } | { type: "image_url"; image_url: { url: string } }
-    > = [{ type: "text", text: step1Prompt }];
-
-    // Add reference images
-    referenceImages.forEach((img) => {
       step1Content.push({
         type: "image_url",
-        image_url: { url: extractBase64(img.data) },
+        image_url: { url: extractBase64(personaImage.data) },
       });
-    });
 
-    // Add persona image
-    step1Content.push({
-      type: "image_url",
-      image_url: { url: extractBase64(personaImage.data) },
-    });
+      const step1Response = await provider.client.chat.completions.create({
+        model: visionModel,
+        stream: false,
+        messages: [{ role: "user", content: step1Content }],
+        max_tokens: 1500,
+        ...extraParams,
+      });
 
-    const step1Response = await provider.client.chat.completions.create({
-      model: visionModel,
-      stream: false,
-      messages: [{ role: "user", content: step1Content }],
-      max_tokens: 1500,
-      ...extraParams,
-    });
+      personaDescription = step1Response.choices[0].message.content || "";
+    }
 
-    const personaDescription = step1Response.choices[0].message.content || "";
     step1Time = Date.now() - step1Start;
     console.log("Step 1 complete in", step1Time, "ms");
     console.log("Persona description length:", personaDescription.length);
@@ -166,51 +173,71 @@ First describe the persona's complete appearance including their clothing, then 
     const step2Start = Date.now();
     console.log("\n--- Step 2: Replace Prompt ---");
 
-    const step2Prompt = `You are analyzing a TARGET IMAGE to create an AI image generation prompt.
+    const step2Prompt = `You are an art director creating detailed prompts for AI illustration. You analyze images for their visual composition and combine them with appearance descriptions to create illustration briefs. Do not identify any people — focus only on visual elements.
 
-## PERSONA DESCRIPTION (from previous analysis - this person's IDENTITY/FACE must be used):
+## APPEARANCE DESCRIPTION (physical traits for the figure):
 ${personaDescription}
 
 ## YOUR TASK:
-Analyze the TARGET IMAGE and create a detailed prompt that will:
+Analyze the TARGET IMAGE, then write an illustration prompt that places a figure with the appearance above into the scene, pose, and OUTFIT from the target image.
 
-1. USE THE PERSONA'S IDENTITY from the description above:
-   - Their face, facial features, skin tone
-   - Their hair style and color
-   - Their body type and distinctive characteristics
-   - DO NOT use their original clothing - ignore clothing from persona description
+1. FROM THE APPEARANCE DESCRIPTION above, carry over ONLY:
+   - Hair styling and color
+   - Skin tone and complexion
+   - Age range and build
+   - Facial hair if described
+   - General expression/demeanor
 
-2. KEEP EVERYTHING FROM THE TARGET IMAGE:
-   - The EXACT clothing and accessories the person is wearing
-   - The EXACT pose and body position
-   - The EXACT camera angle and framing
-   - The background/environment/scene
-   - The lighting and mood
+2. FROM THE TARGET IMAGE, extract EVERYTHING ELSE:
+   - The CLOTHING and accessories worn in the image (this is the outfit to use)
+   - The pose and body positioning
+   - Camera angle and framing/composition
+   - Background, environment, and setting
+   - Lighting quality, direction, and color temperature
+   - Props and contextual objects
 
-3. THE GOAL: Replace ONLY the person's identity (face/features) in the target image with the persona's identity, while keeping the target's clothes, pose, and scene exactly as shown.
+3. Write a cohesive illustration prompt: a figure with the described physical appearance, wearing the TARGET IMAGE's outfit, in the TARGET IMAGE's pose and scene.
 
-Think of it as: "Put the persona's face on the person in this image, keeping everything else identical"
+Output ONLY the final illustration prompt, nothing else.`;
 
-First describe what you see in the target image (pose, clothing, scene), then create the final prompt.
+    let replacePrompt: string;
 
-Output ONLY the final image generation prompt, nothing else.`;
+    if (providerId === "claude") {
+      replacePrompt = await callClaudeVision(step2Prompt, [{ dataUrl: targetImage.data }]);
+    } else {
+      const provider = getProvider(providerId);
+      const visionModel = provider.visionModel;
 
-    const step2Content: Array<
-      { type: "text"; text: string } | { type: "image_url"; image_url: { url: string } }
-    > = [
-      { type: "text", text: step2Prompt },
-      { type: "image_url", image_url: { url: extractBase64(targetImage.data) } },
-    ];
+      const extraParams: Record<string, unknown> = {};
+      if (thinking && providerId === "glm") {
+        extraParams.thinking = { type: "enabled" };
+      }
 
-    const step2Response = await provider.client.chat.completions.create({
-      model: visionModel,
-      stream: false,
-      messages: [{ role: "user", content: step2Content }],
-      max_tokens: 1500,
-      ...extraParams,
-    });
+      const extractBase64 = (dataUrl: string): string => {
+        if (providerId === "glm") {
+          const base64Match = dataUrl.match(/^data:image\/[^;]+;base64,(.+)$/);
+          return base64Match ? base64Match[1] : dataUrl;
+        }
+        return dataUrl;
+      };
 
-    const replacePrompt = step2Response.choices[0].message.content || "";
+      const step2Content: Array<
+        { type: "text"; text: string } | { type: "image_url"; image_url: { url: string } }
+      > = [
+        { type: "text", text: step2Prompt },
+        { type: "image_url", image_url: { url: extractBase64(targetImage.data) } },
+      ];
+
+      const step2Response = await provider.client.chat.completions.create({
+        model: visionModel,
+        stream: false,
+        messages: [{ role: "user", content: step2Content }],
+        max_tokens: 1500,
+        ...extraParams,
+      });
+
+      replacePrompt = step2Response.choices[0].message.content || "";
+    }
     step2Time = Date.now() - step2Start;
     console.log("Step 2 complete in", step2Time, "ms");
     console.log("Replace prompt length:", replacePrompt.length);

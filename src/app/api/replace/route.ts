@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getProvider, DEFAULT_PROVIDER } from "@/lib/providers";
+import { getProvider, DEFAULT_PROVIDER, extractTextContent } from "@/lib/providers";
+import { callClaudeVision } from "@/lib/claude-code/api-adapter";
 
 export async function POST(request: NextRequest) {
   try {
@@ -25,6 +26,42 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Shared prompt for all providers
+    const promptText = `You are an art director creating detailed prompts for AI illustration. You analyze images for their visual composition and combine them with appearance descriptions to create illustration briefs. Do not identify any people — focus only on visual elements.
+
+## APPEARANCE DESCRIPTION (physical traits for the figure):
+${personaDescription}
+
+## YOUR TASK:
+Analyze the TARGET IMAGE, then write an illustration prompt that places a figure with the appearance above into the scene, pose, and OUTFIT from the target image.
+
+1. FROM THE APPEARANCE DESCRIPTION above, carry over ONLY:
+   - Hair styling and color
+   - Skin tone and complexion
+   - Age range and build
+   - Facial hair if described
+   - General expression/demeanor
+
+2. FROM THE TARGET IMAGE, extract EVERYTHING ELSE:
+   - The CLOTHING and accessories worn in the image (this is the outfit to use)
+   - The pose and body positioning
+   - Camera angle and framing/composition
+   - Background, environment, and setting
+   - Lighting quality, direction, and color temperature
+   - Props and contextual objects
+
+3. Write a cohesive illustration prompt: a figure with the described physical appearance, wearing the TARGET IMAGE's outfit, in the TARGET IMAGE's pose and scene.
+
+Output ONLY the final illustration prompt, nothing else.`;
+
+    // === Claude CLI provider ===
+    if (providerId === "claude") {
+      const imageData = targetImage.data || targetImage;
+      const description = await callClaudeVision(promptText, [{ dataUrl: imageData }]);
+      return NextResponse.json({ description });
+    }
+
+    // === OpenAI-compatible providers (Mistral, GLM) ===
     const provider = getProvider(providerId);
 
     if (!provider.supportsVision) {
@@ -50,36 +87,6 @@ export async function POST(request: NextRequest) {
       }
       return dataUrl;
     };
-
-    // Build the prompt for the replace agent
-    const promptText = `You are analyzing a TARGET IMAGE to create an AI image generation prompt.
-
-## PERSONA DESCRIPTION (from previous analysis - this person's IDENTITY/FACE must be used):
-${personaDescription}
-
-## YOUR TASK:
-Analyze the TARGET IMAGE and create a detailed prompt that will:
-
-1. USE THE PERSONA'S IDENTITY from the description above:
-   - Their face, facial features, skin tone
-   - Their hair style and color
-   - Their body type and distinctive characteristics
-   - DO NOT use their original clothing - ignore clothing from persona description
-
-2. KEEP EVERYTHING FROM THE TARGET IMAGE:
-   - The EXACT clothing and accessories the person is wearing
-   - The EXACT pose and body position
-   - The EXACT camera angle and framing
-   - The background/environment/scene
-   - The lighting and mood
-
-3. THE GOAL: Replace ONLY the person's identity (face/features) in the target image with the persona's identity, while keeping the target's clothes, pose, and scene exactly as shown.
-
-Think of it as: "Put the persona's face on the person in this image, keeping everything else identical"
-
-First describe what you see in the target image (pose, clothing, scene), then create the final prompt.
-
-Output ONLY the final image generation prompt, nothing else.`;
 
     const content: Array<
       { type: "text"; text: string } | { type: "image_url"; image_url: { url: string } }
@@ -110,7 +117,7 @@ Output ONLY the final image generation prompt, nothing else.`;
     });
 
     return NextResponse.json({
-      description: response.choices[0].message.content,
+      description: extractTextContent(response.choices[0].message.content),
     });
   } catch (error: unknown) {
     console.error("Replace API Error:", error);

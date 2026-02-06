@@ -28,3 +28,10 @@ export interface ClaudeCodeImageInput {
   /** Optional label for the image */
   label?: string;
 }
+
+export interface ClaudeCodeBase64Image {
+  /** Base64 data URL (e.g. "data:image/jpeg;base64,...") */
+  dataUrl: string;
+  /** Optional label for the image */
+  label?: string;
+}

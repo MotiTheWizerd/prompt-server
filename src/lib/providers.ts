@@ -67,13 +67,37 @@ export function getProvider(providerId: string): Provider {
   };
 }
 
+// Claude CLI provider (not OpenAI-based, handled separately in API routes)
+const claudeProvider = {
+  id: "claude",
+  name: "Claude (CLI)",
+  supportsVision: true,
+};
+
 export function getAvailableProviders(): Array<{ id: string; name: string; supportsVision: boolean; models?: typeof glmModels }> {
-  return Object.values(providerConfigs).map(({ id, name, supportsVision, models }) => ({
+  const openaiProviders = Object.values(providerConfigs).map(({ id, name, supportsVision, models }) => ({
     id,
     name,
     supportsVision,
     models,
   }));
+  return [...openaiProviders, claudeProvider];
 }
 
 export const DEFAULT_PROVIDER = "mistral";
+
+/**
+ * Extract text from a chat completion message content.
+ * Reasoning models (e.g. magistral) return content as an array of
+ * content blocks instead of a plain string.
+ */
+export function extractTextContent(content: unknown): string {
+  if (typeof content === "string") return content;
+  if (Array.isArray(content)) {
+    return content
+      .filter((block: Record<string, unknown>) => block.type === "text")
+      .map((block: Record<string, unknown>) => block.text || "")
+      .join("");
+  }
+  return String(content || "");
+}
