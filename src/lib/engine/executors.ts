@@ -31,112 +31,63 @@ function mergeInputText(inputs: NodeOutput[]): string {
 }
 
 /**
- * ConsistentCharacterNode: dual-mode executor.
- * - Image mode: persona image + target image → /api/describe → /api/replace
- * - Text mode:  persona image + upstream text → /api/describe → /api/inject-persona
+ * ConsistentCharacterNode: uses pre-saved character from the library.
+ * - Text mode (incoming edge): cached persona description + upstream text → /api/inject-persona
+ * - Persona mode (no edge): outputs the cached persona description as-is
  */
 const consistentCharacter: NodeExecutor = async (ctx) => {
   const { nodeData, inputs, providerId } = ctx;
-  const personaImage = nodeData.image as string;
-  const targetImage = nodeData.targetImage as string;
+  const personaDescription = nodeData.characterDescription as string;
   const upstreamText = mergeInputText(inputs);
 
-  if (!personaImage) {
+  if (!personaDescription) {
     return {
       success: false,
-      output: { error: "Character image is required" },
-    };
-  }
-
-  // Determine mode: target image takes priority (explicit user action)
-  const mode = targetImage ? "image" : upstreamText ? "text" : null;
-
-  if (!mode) {
-    return {
-      success: false,
-      output: { error: "Provide a target image or connect a text input" },
+      output: { error: "No character selected — drag one from Assets" },
     };
   }
 
   const start = Date.now();
 
-  // Step 1 (shared): Describe persona
-  const describeRes = await fetch("/api/describe", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      images: [{ data: personaImage, filename: "persona.jpg", type: "persona" }],
-      providerId,
-    }),
-  });
-
-  if (!describeRes.ok) {
-    const err = await describeRes.json().catch(() => ({ error: "Describe request failed" }));
-    return { success: false, output: { error: err.error || "Describe step failed" } };
-  }
-
-  const { description: personaDescription } = await describeRes.json();
-
-  // Step 2a: Image mode — merge persona with target image
-  if (mode === "image") {
-    const replaceRes = await fetch("/api/replace", {
+  // Text mode: inject persona into upstream text
+  if (upstreamText) {
+    const injectRes = await fetch("/api/inject-persona", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         personaDescription,
-        targetImage: { data: targetImage },
+        promptText: upstreamText,
         providerId,
       }),
     });
 
-    if (!replaceRes.ok) {
-      const err = await replaceRes.json().catch(() => ({ error: "Replace request failed" }));
+    if (!injectRes.ok) {
+      const err = await injectRes.json().catch(() => ({ error: "Inject request failed" }));
       return {
         success: false,
-        output: { personaDescription, error: err.error || "Replace step failed" },
+        output: { personaDescription, error: err.error || "Persona injection failed" },
       };
     }
 
-    const { description: replacePrompt } = await replaceRes.json();
+    const { injected } = await injectRes.json();
 
     return {
       success: true,
       output: {
-        text: replacePrompt,
+        text: injected,
         personaDescription,
-        replacePrompt,
+        injectedPrompt: injected,
         durationMs: Date.now() - start,
       },
     };
   }
 
-  // Step 2b: Text mode — inject persona into upstream text
-  const injectRes = await fetch("/api/inject-persona", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      personaDescription,
-      promptText: upstreamText,
-      providerId,
-    }),
-  });
-
-  if (!injectRes.ok) {
-    const err = await injectRes.json().catch(() => ({ error: "Inject request failed" }));
-    return {
-      success: false,
-      output: { personaDescription, error: err.error || "Persona injection failed" },
-    };
-  }
-
-  const { injected } = await injectRes.json();
-
+  // Persona mode: pass through the cached description
   return {
     success: true,
     output: {
-      text: injected,
+      text: personaDescription,
       personaDescription,
-      injectedPrompt: injected,
       durationMs: Date.now() - start,
     },
   };
@@ -228,6 +179,38 @@ const translator: NodeExecutor = async (ctx) => {
   };
 };
 
+/** ImageDescriberNode: uploads image to /api/describe, outputs text description. */
+const imageDescriber: NodeExecutor = async (ctx) => {
+  const { nodeData, providerId } = ctx;
+  const image = nodeData.image as string;
+
+  if (!image) {
+    return { success: false, output: { error: "No image uploaded" } };
+  }
+
+  const start = Date.now();
+
+  const res = await fetch("/api/describe", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      images: [{ data: image, filename: "image.jpg", type: "reference" }],
+      providerId,
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: "Describe request failed" }));
+    return { success: false, output: { error: err.error || "Image description failed" } };
+  }
+
+  const { description } = await res.json();
+  return {
+    success: true,
+    output: { text: description, durationMs: Date.now() - start },
+  };
+};
+
 /** TextOutputNode: terminal sink — receives upstream text, no API call. */
 const textOutput: NodeExecutor = async (ctx) => {
   const text = mergeInputText(ctx.inputs);
@@ -236,9 +219,10 @@ const textOutput: NodeExecutor = async (ctx) => {
 
 /** Registry mapping node type → executor. Groups are intentionally absent. */
 export const executorRegistry: ExecutorRegistry = {
-  consistentCharacter,
   initialPrompt,
   promptEnhancer,
   translator,
+  imageDescriber,
   textOutput,
+  consistentCharacter,
 };

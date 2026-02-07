@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useCallback, useState, useEffect } from "react";
 import {
   ReactFlow,
   Background,
@@ -19,22 +18,27 @@ import {
   Languages,
   Group,
   Play,
-  LogOut,
-  UserRound,
   FileText,
   Loader2,
   AlertCircle,
   X,
+  ScanEye,
+  ChevronDown,
+  ChevronRight,
+  UserRound,
+  Box,
+  Puzzle,
 } from "lucide-react";
 import { useFlowStore } from "@/store/flow-store";
 import { nodeTypes } from "@/components/nodes";
+import { getCharacters, type Character } from "@/lib/characters";
 
 const sidebarNodes = [
   { type: "group", label: "Group", icon: Group, color: "text-gray-400" },
   { type: "initialPrompt", label: "Initial Prompt", icon: MessageSquareText, color: "text-cyan-400" },
   { type: "promptEnhancer", label: "Prompt Enhancer", icon: Sparkles, color: "text-violet-400" },
   { type: "translator", label: "Translator", icon: Languages, color: "text-orange-400" },
-  { type: "consistentCharacter", label: "Consistent Character", icon: UserRound, color: "text-amber-400" },
+  { type: "imageDescriber", label: "Image Describer", icon: ScanEye, color: "text-pink-400" },
   { type: "textOutput", label: "Text Output", icon: FileText, color: "text-emerald-400" },
 ];
 
@@ -49,9 +53,6 @@ export default function Dashboard() {
 }
 
 function DashboardInner() {
-  const router = useRouter();
-  const [ready, setReady] = useState(false);
-
   const {
     nodes,
     edges,
@@ -68,24 +69,31 @@ function DashboardInner() {
   } = useFlowStore();
   const { screenToFlowPosition, getIntersectingNodes } = useReactFlow();
 
+  // Sidebar collapse state
+  const [assetsOpen, setAssetsOpen] = useState(true);
+  const [componentsOpen, setComponentsOpen] = useState(true);
+
+  // Load characters for the Assets section
+  const [characters, setCharacters] = useState<Character[]>([]);
   useEffect(() => {
-    if (sessionStorage.getItem("authenticated") !== "true") {
-      router.replace("/");
-    } else {
-      setReady(true);
-    }
-  }, [router]);
+    setCharacters(getCharacters());
+  }, []);
 
-  const handleLogout = () => {
-    sessionStorage.removeItem("authenticated");
-    router.replace("/");
-  };
+  // Refresh characters when window regains focus (user may have added chars on another page)
+  useEffect(() => {
+    const onFocus = () => setCharacters(getCharacters());
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, []);
 
-  // --- Sidebar drag-and-drop (simple: always creates top-level node) ---
+  // --- Sidebar drag-and-drop ---
 
   const onDragStart = useCallback(
-    (event: React.DragEvent, nodeType: string) => {
+    (event: React.DragEvent, nodeType: string, charData?: Character) => {
       event.dataTransfer.setData("application/reactflow", nodeType);
+      if (charData) {
+        event.dataTransfer.setData("application/character", JSON.stringify(charData));
+      }
       event.dataTransfer.effectAllowed = "move";
     },
     []
@@ -104,11 +112,24 @@ function DashboardInner() {
 
       const isGroup = type === "group";
 
+      // Check if this is a character asset drop
+      const charRaw = event.dataTransfer.getData("application/character");
+      const charData: Character | null = charRaw ? JSON.parse(charRaw) : null;
+
       const newNode: Node = {
         id: `${type}-${nodeId++}`,
         type,
         position,
-        data: { label: isGroup ? "Group" : type },
+        data: isGroup
+          ? { label: "Group" }
+          : charData
+            ? {
+                characterId: charData.id,
+                characterName: charData.name,
+                characterDescription: charData.description,
+                characterImagePath: charData.imagePath,
+              }
+            : { label: type },
         ...(isGroup && { style: { width: 500, height: 300 } }),
       };
 
@@ -126,7 +147,6 @@ function DashboardInner() {
 
   const onNodeDrag = useCallback(
     (_event: React.MouseEvent, node: Node) => {
-      // Don't try to parent a group inside another group
       if (node.type === "group") {
         setHoveredGroupId(null);
         return;
@@ -149,24 +169,20 @@ function DashboardInner() {
       const group = intersecting.find((n) => n.type === "group");
 
       if (group) {
-        // Node was dropped onto a group → attach it
         if (node.parentId !== group.id) {
           setNodeParent(node.id, group.id);
         }
       } else if (node.parentId) {
-        // Node was dragged out of its group → detach it
         removeNodeFromGroup(node.id);
       }
     },
     [getIntersectingNodes, setHoveredGroupId, setNodeParent, removeNodeFromGroup]
   );
 
-  if (!ready) return null;
-
   return (
-    <div className="h-screen flex flex-col bg-gray-950 text-white">
+    <div className="h-full flex flex-col bg-gray-950 text-white">
       {/* Top bar */}
-      <header className="flex items-center justify-between px-4 py-2.5 border-b border-gray-800 bg-gray-950/80 backdrop-blur-sm z-10">
+      <header className="flex items-center px-4 py-2.5 border-b border-gray-800 bg-gray-950/80 backdrop-blur-sm z-10">
         <div className="flex items-center gap-4">
           <h1 className="text-lg font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
             Prompt Creator
@@ -199,13 +215,6 @@ function DashboardInner() {
             {execution.isRunning ? "Running..." : "Run Pipeline"}
           </button>
         </div>
-        <button
-          onClick={handleLogout}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-gray-700 text-gray-400 hover:text-white hover:border-gray-600 transition-colors"
-        >
-          <LogOut className="w-3 h-3" />
-          Sign Out
-        </button>
       </header>
 
       {/* Global error banner */}
@@ -224,24 +233,78 @@ function DashboardInner() {
 
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}
-        <aside className="w-56 border-r border-gray-800 bg-gray-950/60 p-3 flex flex-col gap-3">
-          <div className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
-            Nodes
-          </div>
-          {sidebarNodes.map((item) => (
-            <div
-              key={item.type}
-              draggable
-              onDragStart={(e) => onDragStart(e, item.type)}
-              className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg border border-gray-800 bg-gray-900/50 hover:bg-gray-800/70 hover:border-gray-700 cursor-grab active:cursor-grabbing transition-colors"
-            >
-              <item.icon className={`w-4 h-4 ${item.color}`} />
-              <span className="text-xs text-gray-300">{item.label}</span>
-            </div>
-          ))}
+        <aside className="w-56 border-r border-gray-800 bg-gray-950/60 p-3 flex flex-col gap-1 overflow-y-auto">
 
-          <div className="mt-auto text-[10px] text-gray-600 text-center">
-            Drag nodes onto the canvas
+          {/* === Assets Section === */}
+          <button
+            onClick={() => setAssetsOpen(!assetsOpen)}
+            className="flex items-center gap-1.5 px-1 py-1.5 text-[10px] font-semibold text-gray-500 uppercase tracking-wider hover:text-gray-400 transition-colors w-full"
+          >
+            {assetsOpen ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+            <Box className="w-3 h-3" />
+            Assets
+          </button>
+
+          {assetsOpen && (
+            <div className="flex flex-col gap-1.5 mb-2">
+              {characters.length === 0 ? (
+                <div className="px-3 py-3 text-[10px] text-gray-600 italic text-center">
+                  No characters yet.
+                  <br />
+                  Create them in Characters page.
+                </div>
+              ) : (
+                characters.map((char) => (
+                  <div
+                    key={char.id}
+                    draggable
+                    onDragStart={(e) => onDragStart(e, "consistentCharacter", char)}
+                    className="flex items-center gap-2 px-2 py-1.5 rounded-lg border border-gray-800 bg-gray-900/50 hover:bg-gray-800/70 hover:border-amber-500/30 cursor-grab active:cursor-grabbing transition-colors"
+                  >
+                    <img
+                      src={char.imagePath}
+                      alt={char.name}
+                      className="w-7 h-7 rounded-md object-cover border border-gray-700 shrink-0"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[11px] text-gray-300 font-medium truncate">{char.name}</div>
+                      <div className="text-[9px] text-gray-600 truncate">{char.description.slice(0, 40)}...</div>
+                    </div>
+                    <UserRound className="w-3 h-3 text-amber-400/60 shrink-0" />
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+
+          {/* === Components Section === */}
+          <button
+            onClick={() => setComponentsOpen(!componentsOpen)}
+            className="flex items-center gap-1.5 px-1 py-1.5 text-[10px] font-semibold text-gray-500 uppercase tracking-wider hover:text-gray-400 transition-colors w-full"
+          >
+            {componentsOpen ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+            <Puzzle className="w-3 h-3" />
+            Components
+          </button>
+
+          {componentsOpen && (
+            <div className="flex flex-col gap-1.5 mb-2">
+              {sidebarNodes.map((item) => (
+                <div
+                  key={item.type}
+                  draggable
+                  onDragStart={(e) => onDragStart(e, item.type)}
+                  className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg border border-gray-800 bg-gray-900/50 hover:bg-gray-800/70 hover:border-gray-700 cursor-grab active:cursor-grabbing transition-colors"
+                >
+                  <item.icon className={`w-4 h-4 ${item.color}`} />
+                  <span className="text-xs text-gray-300">{item.label}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="mt-auto text-[10px] text-gray-600 text-center pt-2">
+            Drag items onto the canvas
           </div>
         </aside>
 
