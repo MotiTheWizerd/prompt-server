@@ -61,7 +61,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<PipelineR
     console.log("Has target:", !!targetImage);
 
     // Build Step 1 prompt (shared by all providers)
-    let step1Prompt = "You are an art director writing detailed visual descriptions for illustration projects. Analyze the images provided and describe the VISUAL ELEMENTS you observe. Do not attempt to identify any people. Focus only on describable visual elements.\n\n";
+    let step1Prompt = "You are an expert at describing physical appearance from images. Analyze the images provided and write precise, detailed descriptions.\n\n";
     let imageIndex = 1;
 
     referenceImages.forEach((img) => {
@@ -173,7 +173,7 @@ Write a cohesive visual description that an illustrator could use. Focus on the 
     const step2Start = Date.now();
     console.log("\n--- Step 2: Replace Prompt ---");
 
-    const step2Prompt = `You are an art director creating detailed prompts for AI illustration. You analyze images for their visual composition and combine them with appearance descriptions to create illustration briefs. Do not identify any people — focus only on visual elements.
+    const step2Prompt = `You are an expert prompt engineer for AI image generation. You analyze images and combine them with appearance descriptions to create precise, detailed prompts.
 
 ## APPEARANCE DESCRIPTION (physical traits for the figure):
 ${personaDescription}

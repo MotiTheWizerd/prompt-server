@@ -28,10 +28,12 @@ import {
   UserRound,
   Box,
   Puzzle,
+  BookOpen,
 } from "lucide-react";
 import { useFlowStore } from "@/store/flow-store";
 import { nodeTypes } from "@/components/nodes";
 import { getCharacters, type Character } from "@/lib/characters";
+import { ProviderSelect } from "@/components/shared/ProviderSelect";
 
 const sidebarNodes = [
   { type: "group", label: "Group", icon: Group, color: "text-gray-400" },
@@ -39,6 +41,7 @@ const sidebarNodes = [
   { type: "promptEnhancer", label: "Prompt Enhancer", icon: Sparkles, color: "text-violet-400" },
   { type: "translator", label: "Translator", icon: Languages, color: "text-orange-400" },
   { type: "imageDescriber", label: "Image Describer", icon: ScanEye, color: "text-pink-400" },
+  { type: "storyTeller", label: "Story Teller", icon: BookOpen, color: "text-amber-400" },
   { type: "textOutput", label: "Text Output", icon: FileText, color: "text-emerald-400" },
 ];
 
@@ -190,16 +193,11 @@ function DashboardInner() {
           <div className="h-5 w-px bg-gray-700" />
 
           {/* Provider selector */}
-          <select
+          <ProviderSelect
             value={execution.providerId}
-            onChange={(e) => setProviderId(e.target.value)}
+            onChange={setProviderId}
             disabled={execution.isRunning}
-            className="bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs text-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500/50 disabled:opacity-50"
-          >
-            <option value="mistral">Mistral AI</option>
-            <option value="glm">GLM (Zhipu)</option>
-            <option value="claude">Claude (CLI)</option>
-          </select>
+          />
 
           {/* Run button */}
           <button

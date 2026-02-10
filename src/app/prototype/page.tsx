@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { prepareImageForAPI } from "@/lib/image-utils";
 import {
   UserRound,
   ImagePlus,
@@ -13,6 +14,7 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import Link from "next/link";
+import { ProviderSelect } from "@/components/shared/ProviderSelect";
 
 interface ImageItem {
   data: string;
@@ -113,7 +115,10 @@ export default function PrototypePage() {
   const handleFileToBase64 = (file: File): Promise<string> =>
     new Promise((resolve) => {
       const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
+      reader.onload = async () => {
+        const resized = await prepareImageForAPI(reader.result as string);
+        resolve(resized);
+      };
       reader.readAsDataURL(file);
     });
 
@@ -197,15 +202,11 @@ export default function PrototypePage() {
             Pipeline Prototype
           </h1>
         </div>
-        <select
+        <ProviderSelect
           value={provider}
-          onChange={(e) => setProvider(e.target.value)}
+          onChange={setProvider}
           className="bg-gray-900 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-gray-300 outline-none focus:border-purple-500"
-        >
-          <option value="mistral">Mistral AI</option>
-          <option value="glm">GLM (Zhipu)</option>
-          <option value="claude">Claude (CLI)</option>
-        </select>
+        />
       </header>
 
       <div className="max-w-5xl mx-auto p-6 space-y-6">

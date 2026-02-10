@@ -5,6 +5,7 @@ import { TranslatorNode } from "./TranslatorNode";
 import { ImageDescriberNode } from "./ImageDescriberNode";
 import { TextOutputNode } from "./TextOutputNode";
 import { ConsistentCharacterNode } from "./ConsistentCharacterNode";
+import { StoryTellerNode } from "./StoryTellerNode";
 
 export const nodeTypes = {
   initialPrompt: InitialPromptNode,
@@ -14,4 +15,5 @@ export const nodeTypes = {
   imageDescriber: ImageDescriberNode,
   textOutput: TextOutputNode,
   consistentCharacter: ConsistentCharacterNode,
+  storyTeller: StoryTellerNode,
 };

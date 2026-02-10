@@ -37,6 +37,15 @@ const providerConfigs: Record<string, Omit<Provider, "client"> & { baseURL: stri
     apiKeyEnv: "GLM_API_KEY",
     models: glmModels,
   },
+  openrouter: {
+    id: "openrouter",
+    name: "OpenRouter",
+    textModel: "cognitivecomputations/dolphin-mistral-24b-venice-edition:free",
+    visionModel: "cognitivecomputations/dolphin-mistral-24b-venice-edition:free",
+    supportsVision: false,
+    baseURL: "https://openrouter.ai/api/v1",
+    apiKeyEnv: "OPENROUTER_API_KEY",
+  },
 };
 
 // Initialize clients lazily
@@ -84,7 +93,7 @@ export function getAvailableProviders(): Array<{ id: string; name: string; suppo
   return [...openaiProviders, claudeProvider];
 }
 
-export const DEFAULT_PROVIDER = "mistral";
+export const DEFAULT_PROVIDER = "openrouter";
 
 /**
  * Extract text from a chat completion message content.

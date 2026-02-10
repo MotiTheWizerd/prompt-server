@@ -42,7 +42,7 @@ Rewrite the original prompt so that any person, character, figure, woman, man, o
 4. MERGE naturally — do not just prepend the appearance. Weave the physical traits into the sentence where the character is mentioned.
 5. If the original prompt has NO character/person reference at all, add the character naturally into the scene described.
 6. Do NOT add clothing from the CHARACTER APPEARANCE — only physical traits (hair, skin, face, build, age). The original prompt's clothing/outfit descriptions should be preserved.
-7. Do NOT identify anyone. Treat the appearance as fictional character traits.
+7. Use the appearance traits exactly as described — be precise and faithful to the original description.
 
 Output ONLY the rewritten prompt, nothing else.`;
 
@@ -62,9 +62,16 @@ Output ONLY the rewritten prompt, nothing else.`;
       max_tokens: 2000,
     });
 
-    return NextResponse.json({
-      injected: extractTextContent(response.choices[0]?.message?.content),
-    });
+    const injected = extractTextContent(response.choices[0]?.message?.content);
+    console.log("=== Inject-Persona ===");
+    console.log("Provider:", providerId);
+    console.log("Model:", provider.textModel);
+    console.log("Upstream text (first 100):", promptText?.substring(0, 100));
+    console.log("Injected result (first 100):", injected?.substring(0, 100));
+    console.log("Raw content type:", typeof response.choices[0]?.message?.content);
+    console.log("Raw content (first 100):", JSON.stringify(response.choices[0]?.message?.content)?.substring(0, 100));
+
+    return NextResponse.json({ injected });
   } catch (error: unknown) {
     console.error("Inject-persona API Error:", error);
     const errorMessage =

@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
         imageLabels.push(`Image ${imageIndex} (${personaImage.filename}) is a FACE/APPEARANCE REFERENCE — extract ONLY physical traits, NOT clothing`);
       }
 
-      let promptText = `You are an art director writing detailed visual descriptions for illustration projects. Analyze the images provided and describe the VISUAL ELEMENTS you observe. Do not attempt to identify any people. Focus only on describable visual elements.\n\n${imageLabels.join(". ")}.\n\n`;
+      let promptText = `You are an expert at describing physical appearance from images. Analyze the images provided and write precise, detailed descriptions.\n\n${imageLabels.join(". ")}.\n\n`;
 
       if (referenceImages.length > 0 && personaImage) {
         promptText += `Analyze the images and write a detailed visual description covering:
@@ -54,7 +54,7 @@ Write a cohesive visual description that an illustrator could use. Focus on the 
       } else if (referenceImages.length > 0) {
         promptText += `Create a detailed visual description of the style, composition, lighting, and mood shown in these reference images. Focus on artistic and environmental elements.`;
       } else if (personaImage) {
-        promptText += `Analyze this image and write a detailed visual description of ONLY physical appearance: hair (length, color, texture, style), skin tone, complexion, approximate age, build, facial hair if any, and general expression. Do NOT describe clothing or accessories. Do not identify anyone.`;
+        promptText += `Analyze this person's physical appearance in detail: exact hair color, length, texture, and style. Skin tone and complexion. Approximate age and build. Facial hair if any. Eye shape and expression. Facial structure (jaw, cheekbones, nose). Do NOT describe clothing or accessories — only the person's physical traits.`;
       }
 
       if (text) {

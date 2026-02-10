@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Shared prompt for all providers
-    const promptText = `You are an art director creating detailed prompts for AI illustration. You analyze images for their visual composition and combine them with appearance descriptions to create illustration briefs. Do not identify any people — focus only on visual elements.
+    const promptText = `You are an expert prompt engineer for AI image generation. You analyze images and combine them with appearance descriptions to create precise, detailed prompts.
 
 ## APPEARANCE DESCRIPTION (physical traits for the figure):
 ${personaDescription}

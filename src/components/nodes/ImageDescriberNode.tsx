@@ -3,6 +3,7 @@ import { useRef } from "react";
 import { ScanEye, X } from "lucide-react";
 import { BaseNode } from "./BaseNode";
 import { useFlowStore } from "@/store/flow-store";
+import { prepareImageForAPI } from "@/lib/image-utils";
 
 export function ImageDescriberNode({ id, data }: NodeProps) {
   const updateNodeData = useFlowStore((s) => s.updateNodeData);
@@ -15,7 +16,10 @@ export function ImageDescriberNode({ id, data }: NodeProps) {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => updateNodeData(id, { image: reader.result as string });
+    reader.onload = async () => {
+      const resized = await prepareImageForAPI(reader.result as string);
+      updateNodeData(id, { image: resized });
+    };
     reader.readAsDataURL(file);
     if (inputRef.current) inputRef.current.value = "";
   };

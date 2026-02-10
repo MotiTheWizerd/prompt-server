@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { prepareImageForAPI } from "@/lib/image-utils";
 import {
   UserRound,
   Plus,
@@ -15,6 +16,7 @@ import {
   saveCharacter,
   deleteCharacter,
 } from "@/lib/characters";
+import { ProviderSelect } from "@/components/shared/ProviderSelect";
 
 export default function CharactersPage() {
   const [characters, setCharacters] = useState<Character[]>([]);
@@ -195,7 +197,10 @@ function CreateCharacterModal({
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => setImageData(reader.result as string);
+    reader.onload = async () => {
+      const resized = await prepareImageForAPI(reader.result as string);
+      setImageData(resized);
+    };
     reader.readAsDataURL(file);
     if (inputRef.current) inputRef.current.value = "";
   };
@@ -319,15 +324,12 @@ function CreateCharacterModal({
           />
 
           {/* Provider */}
-          <select
+          <ProviderSelect
             value={providerId}
-            onChange={(e) => setProviderId(e.target.value)}
+            onChange={setProviderId}
+            visionOnly
             className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-gray-300 focus:outline-none focus:ring-1 focus:ring-amber-500/50"
-          >
-            <option value="mistral">Mistral AI</option>
-            <option value="glm">GLM (Zhipu)</option>
-            <option value="claude">Claude (CLI)</option>
-          </select>
+          />
 
           {/* Error */}
           {error && (

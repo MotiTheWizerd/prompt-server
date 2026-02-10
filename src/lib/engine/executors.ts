@@ -217,6 +217,37 @@ const textOutput: NodeExecutor = async (ctx) => {
   return { success: true, output: { text } };
 };
 
+/** StoryTellerNode: creative prompt generator — different output every time. */
+const storyTeller: NodeExecutor = async (ctx) => {
+  const { nodeData, inputs, providerId } = ctx;
+  const idea = (nodeData.idea as string) || "";
+  const tags = (nodeData.tags as string) || "";
+  const upstreamText = mergeInputText(inputs);
+
+  const text = upstreamText || idea;
+  if (!text.trim()) {
+    return { success: false, output: { error: "No idea provided" } };
+  }
+
+  const start = Date.now();
+  const res = await fetch("/api/storyteller", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, tags: tags || undefined, providerId }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: "Story generation failed" }));
+    return { success: false, output: { error: err.error || "Story generation failed" } };
+  }
+
+  const { story } = await res.json();
+  return {
+    success: true,
+    output: { text: story, durationMs: Date.now() - start },
+  };
+};
+
 /** Registry mapping node type → executor. Groups are intentionally absent. */
 export const executorRegistry: ExecutorRegistry = {
   initialPrompt,
@@ -225,4 +256,5 @@ export const executorRegistry: ExecutorRegistry = {
   imageDescriber,
   textOutput,
   consistentCharacter,
+  storyTeller,
 };
