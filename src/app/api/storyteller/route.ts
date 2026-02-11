@@ -4,7 +4,7 @@ import { callClaudeText } from "@/lib/claude-code/api-adapter";
 
 export async function POST(request: NextRequest) {
   try {
-    const { text, tags, providerId = DEFAULT_PROVIDER, maxTokens } = await request.json();
+    const { text, tags, providerId = DEFAULT_PROVIDER, model, maxTokens } = await request.json();
 
     if (!text) {
       return NextResponse.json({ error: "An idea is required" }, { status: 400 });
@@ -38,7 +38,7 @@ Generate a fresh, creative image prompt:`;
     const provider = getProvider(providerId);
 
     const response = await provider.client.chat.completions.create({
-      model: provider.textModel,
+      model: model || provider.textModel,
       stream: false,
       messages: [{ role: "user", content: prompt }],
       max_tokens: maxTokens || 1500,

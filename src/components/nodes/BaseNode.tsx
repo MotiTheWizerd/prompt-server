@@ -1,5 +1,5 @@
 import { Handle, Position } from "@xyflow/react";
-import { AlertTriangle, ChevronDown, ChevronRight, Loader2, Play, Settings } from "lucide-react";
+import { AlertTriangle, ChevronDown, ChevronRight, Copy, Check, Loader2, Play, Settings } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import type { NodeExecutionStatus } from "@/lib/engine/types";
 
@@ -44,6 +44,7 @@ export function BaseNode({
   outputText,
 }: BaseNodeProps) {
   const [outputOpen, setOutputOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
   const ringClass = status === "idle" ? color : statusRingClass[status];
 
   return (
@@ -131,13 +132,28 @@ export function BaseNode({
       {/* Output preview */}
       {status === "complete" && outputText && (
         <div className="mx-3 mb-3">
-          <button
-            onClick={(e) => { e.stopPropagation(); setOutputOpen(!outputOpen); }}
-            className="flex items-center gap-1 text-[10px] text-emerald-400/80 hover:text-emerald-300 transition-colors w-full"
-          >
-            {outputOpen ? <ChevronDown className="w-2.5 h-2.5" /> : <ChevronRight className="w-2.5 h-2.5" />}
-            Output
-          </button>
+          <div className="flex items-center gap-1 w-full">
+            <button
+              onClick={(e) => { e.stopPropagation(); setOutputOpen(!outputOpen); }}
+              className="flex items-center gap-1 text-[10px] text-emerald-400/80 hover:text-emerald-300 transition-colors flex-1 min-w-0"
+            >
+              {outputOpen ? <ChevronDown className="w-2.5 h-2.5 shrink-0" /> : <ChevronRight className="w-2.5 h-2.5 shrink-0" />}
+              Output
+              <span className="ml-auto text-gray-500 font-normal">{outputText.length.toLocaleString()} chars</span>
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                navigator.clipboard.writeText(outputText);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 1500);
+              }}
+              className="p-0.5 text-gray-500 hover:text-gray-300 transition-colors shrink-0"
+              title="Copy output"
+            >
+              {copied ? <Check className="w-2.5 h-2.5 text-emerald-400" /> : <Copy className="w-2.5 h-2.5" />}
+            </button>
+          </div>
           {outputOpen && (
             <div className="mt-1 rounded-lg bg-gray-800/60 border border-gray-700/50 px-2.5 py-2 text-[10px] text-gray-400 leading-relaxed max-h-[120px] overflow-y-auto whitespace-pre-wrap break-words nowheel">
               {outputText}

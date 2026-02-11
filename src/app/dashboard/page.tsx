@@ -30,12 +30,16 @@ import {
   BookOpen,
   SpellCheck,
   CloudSun,
+  Shrink,
+  ImageIcon,
+  UserRoundPen,
 } from "lucide-react";
 import { useFlowStore } from "@/store/flow-store";
 import { nodeTypes } from "@/components/nodes";
 import { getCharacters, type Character } from "@/lib/characters";
 import { ProviderSelect } from "@/components/shared/ProviderSelect";
 import { TabBar } from "@/components/TabBar";
+import { ImageLightbox } from "@/components/ImageLightbox";
 import { initAutoSave } from "@/lib/auto-save";
 import type { FlowData } from "@/store/types";
 
@@ -63,12 +67,15 @@ const componentGroups: SidebarGroup[] = [
       { type: "storyTeller", label: "Story Teller", icon: BookOpen, color: "text-amber-400" },
       { type: "translator", label: "Translator", icon: Languages, color: "text-orange-400" },
       { type: "grammarFix", label: "Grammar Fix", icon: SpellCheck, color: "text-green-400" },
+      { type: "compressor", label: "Compressor", icon: Shrink, color: "text-teal-400" },
+      { type: "personasReplacer", label: "Personas Replacer", icon: UserRoundPen, color: "text-rose-400" },
     ],
   },
   {
     label: "Output",
     items: [
       { type: "textOutput", label: "Text Output", icon: FileText, color: "text-emerald-400" },
+      { type: "imageGenerator", label: "Image Generator", icon: ImageIcon, color: "text-fuchsia-400" },
     ],
   },
   {
@@ -81,6 +88,10 @@ const componentGroups: SidebarGroup[] = [
 
 let nodeId = 100;
 
+// Stable defaults to avoid infinite re-render when store is empty
+const EMPTY_NODES: Node[] = [];
+const EMPTY_EDGES: Edge[] = [];
+
 export default function Dashboard() {
   return (
     <ReactFlowProvider>
@@ -90,8 +101,8 @@ export default function Dashboard() {
 }
 
 function DashboardInner() {
-  const nodes = useFlowStore((s) => s.flows[s.activeFlowId]?.nodes ?? []);
-  const edges = useFlowStore((s) => s.flows[s.activeFlowId]?.edges ?? []);
+  const nodes = useFlowStore((s) => s.flows[s.activeFlowId]?.nodes ?? EMPTY_NODES);
+  const edges = useFlowStore((s) => s.flows[s.activeFlowId]?.edges ?? EMPTY_EDGES);
   const execution = useFlowStore((s) => s.flows[s.activeFlowId]?.execution);
   const {
     onNodesChange,
@@ -137,13 +148,20 @@ function DashboardInner() {
 
   // Initialize auto-save and load saved flows on mount
   useEffect(() => {
+    let stale = false;
     initAutoSave();
 
     fetch("/api/flows")
       .then((r) => r.json())
       .then(async (data: { flows: { id: string; name: string }[] }) => {
-        if (!data.flows || data.flows.length === 0) return;
+        if (stale) return;
+
+        if (!data.flows || data.flows.length === 0) {
+          useFlowStore.getState().createFlow("Flow 1");
+          return;
+        }
         for (const summary of data.flows) {
+          if (stale) return;
           const res = await fetch(`/api/flows/${summary.id}`);
           if (!res.ok) continue;
           const flowJson = await res.json();
@@ -168,10 +186,24 @@ function DashboardInner() {
         // Switch to first loaded flow
         const firstId = data.flows[0].id;
         useFlowStore.getState().switchFlow(firstId);
+
+        // Sync nodeId counter to avoid duplicate IDs
+        const allFlows = useFlowStore.getState().flows;
+        let maxId = nodeId;
+        for (const flow of Object.values(allFlows)) {
+          for (const node of flow.nodes) {
+            const match = node.id.match(/-(\d+)$/);
+            if (match) maxId = Math.max(maxId, Number(match[1]) + 1);
+          }
+        }
+        nodeId = maxId;
       })
       .catch(() => {
-        // No saved flows — keep the default empty flow
+        if (stale) return;
+        useFlowStore.getState().createFlow("Flow 1");
       });
+
+    return () => { stale = true; };
   }, []);
 
   // Load characters for the Assets section
@@ -305,6 +337,7 @@ function DashboardInner() {
 
   return (
     <div className="h-full flex flex-col bg-gray-950 text-white">
+      <ImageLightbox />
       {/* Top bar */}
       <header className="flex items-center px-4 py-2.5 border-b border-gray-800 bg-gray-950/80 backdrop-blur-sm z-10">
         <div className="flex items-center gap-4">
@@ -461,7 +494,7 @@ function DashboardInner() {
             onNodeDragStop={onNodeDragStop}
             nodeTypes={nodeTypes}
             isValidConnection={isValidConnection}
-            defaultViewport={{ x: 0, y: 0, zoom: 0.5 }}
+            defaultViewport={{ x: 0, y: 0, zoom: 0.575 }}
             proOptions={{ hideAttribution: true }}
             defaultEdgeOptions={{ animated: true }}
             className="bg-gray-950"

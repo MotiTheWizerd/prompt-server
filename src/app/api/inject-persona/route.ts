@@ -10,7 +10,7 @@ interface PersonaEntry {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { promptText, providerId = DEFAULT_PROVIDER, maxTokens } = body;
+    const { promptText, providerId = DEFAULT_PROVIDER, model, maxTokens } = body;
 
     // Support both new multi-persona format and legacy single-persona format
     let personas: PersonaEntry[];
@@ -69,7 +69,7 @@ Output ONLY the rewritten prompt, nothing else. Keep the output under 2500 chara
     const provider = getProvider(providerId);
 
     const response = await provider.client.chat.completions.create({
-      model: provider.textModel,
+      model: model || provider.textModel,
       stream: false,
       messages: [{ role: "user", content: prompt }],
       max_tokens: maxTokens || 2000,

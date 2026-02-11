@@ -1,6 +1,6 @@
 import { type NodeProps } from "@xyflow/react";
 import { useRef } from "react";
-import { ScanEye, X } from "lucide-react";
+import { ScanEye, X, Maximize2 } from "lucide-react";
 import { BaseNode } from "./BaseNode";
 import { useFlowStore } from "@/store/flow-store";
 import { prepareImageForAPI } from "@/lib/image-utils";
@@ -8,6 +8,7 @@ import { prepareImageForAPI } from "@/lib/image-utils";
 export function ImageDescriberNode({ id, data }: NodeProps) {
   const updateNodeData = useFlowStore((s) => s.updateNodeData);
   const runFromNode = useFlowStore((s) => s.runFromNode);
+  const openLightbox = useFlowStore((s) => s.openLightbox);
   const status = useFlowStore((s) => s.flows[s.activeFlowId]?.execution.nodeStatus[id] || "idle");
   const errorMessage = useFlowStore((s) => s.flows[s.activeFlowId]?.execution.nodeOutputs[id]?.error);
   const outputText = useFlowStore((s) => s.flows[s.activeFlowId]?.execution.nodeOutputs[id]?.text);
@@ -58,6 +59,12 @@ export function ImageDescriberNode({ id, data }: NodeProps) {
               alt="Image to describe"
               className="w-full h-28 object-cover rounded-lg border border-gray-700"
             />
+            <button
+              onClick={() => openLightbox(image)}
+              className="absolute bottom-1.5 left-1.5 p-1 rounded-md bg-gray-900/80 border border-gray-700 text-gray-400 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <Maximize2 className="w-3 h-3" />
+            </button>
             <button
               onClick={() => updateNodeData(id, { image: "" })}
               className="absolute top-1.5 right-1.5 p-1 rounded-md bg-gray-900/80 border border-gray-700 text-gray-400 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"

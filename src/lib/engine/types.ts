@@ -15,6 +15,7 @@ export interface PersonaInput {
 
 export interface NodeOutput {
   text?: string;
+  image?: string; // base64 data URL from image generation
   personaDescription?: string;
   personaName?: string;
   replacePrompt?: string;
@@ -28,6 +29,8 @@ export interface NodeExecutionContext {
   inputs: NodeOutput[];
   adapterInputs: NodeOutput[];
   providerId: string;
+  model?: string;
+  nodeType: string;
 }
 
 export interface NodeExecutionResult {

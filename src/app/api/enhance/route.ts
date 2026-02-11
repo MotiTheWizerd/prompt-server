@@ -4,7 +4,7 @@ import { callClaudeText } from "@/lib/claude-code/api-adapter";
 
 export async function POST(request: NextRequest) {
   try {
-    const { text, notes, providerId = DEFAULT_PROVIDER, maxTokens } = await request.json();
+    const { text, notes, providerId = DEFAULT_PROVIDER, model, maxTokens } = await request.json();
 
     if (!text) {
       return NextResponse.json({ error: "Text is required" }, { status: 400 });
@@ -43,7 +43,7 @@ Output ONLY the enhanced prompt, nothing else. Keep the output under 2500 charac
     const provider = getProvider(providerId);
 
     const response = await provider.client.chat.completions.create({
-      model: provider.textModel,
+      model: model || provider.textModel,
       stream: false,
       messages: [{ role: "user", content: prompt }],
       max_tokens: maxTokens || 1500,

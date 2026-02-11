@@ -8,6 +8,9 @@ import { ConsistentCharacterNode } from "./ConsistentCharacterNode";
 import { StoryTellerNode } from "./StoryTellerNode";
 import { GrammarFixNode } from "./GrammarFixNode";
 import { SceneBuilderNode } from "./SceneBuilderNode";
+import { CompressorNode } from "./CompressorNode";
+import { ImageGeneratorNode } from "./ImageGeneratorNode";
+import { PersonasReplacerNode } from "./PersonasReplacerNode";
 
 export const nodeTypes = {
   initialPrompt: InitialPromptNode,
@@ -20,4 +23,7 @@ export const nodeTypes = {
   storyTeller: StoryTellerNode,
   grammarFix: GrammarFixNode,
   sceneBuilder: SceneBuilderNode,
+  compressor: CompressorNode,
+  imageGenerator: ImageGeneratorNode,
+  personasReplacer: PersonasReplacerNode,
 };

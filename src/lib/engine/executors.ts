@@ -47,7 +47,8 @@ async function injectPersonasIfPresent(
   text: string,
   adapterInputs: NodeOutput[],
   providerId: string,
-  maxTokens?: number
+  maxTokens?: number,
+  model?: string
 ): Promise<string> {
   const personas = extractPersonas(adapterInputs);
   if (personas.length === 0) return text;
@@ -59,6 +60,7 @@ async function injectPersonasIfPresent(
       personas,
       promptText: text,
       providerId,
+      ...(model && { model }),
       ...(maxTokens && { maxTokens }),
     }),
   });
@@ -107,7 +109,7 @@ const initialPrompt: NodeExecutor = async (ctx) => {
   }
 
   const start = Date.now();
-  const finalText = await injectPersonasIfPresent(text, ctx.adapterInputs, ctx.providerId, maxTokens);
+  const finalText = await injectPersonasIfPresent(text, ctx.adapterInputs, ctx.providerId, maxTokens, ctx.model);
 
   return {
     success: true,
@@ -117,7 +119,7 @@ const initialPrompt: NodeExecutor = async (ctx) => {
 
 /** PromptEnhancerNode: enhances upstream text with additional notes via /api/enhance. */
 const promptEnhancer: NodeExecutor = async (ctx) => {
-  const { nodeData, inputs, adapterInputs, providerId } = ctx;
+  const { nodeData, inputs, adapterInputs, providerId, model } = ctx;
   const notes = (nodeData.notes as string) || "";
   const maxTokens = (nodeData.maxTokens as number) || undefined;
   const upstreamText = mergeInputText(inputs);
@@ -134,6 +136,7 @@ const promptEnhancer: NodeExecutor = async (ctx) => {
       text: upstreamText,
       notes: notes || undefined,
       providerId,
+      ...(model && { model }),
       ...(maxTokens && { maxTokens }),
     }),
   });
@@ -144,7 +147,7 @@ const promptEnhancer: NodeExecutor = async (ctx) => {
   }
 
   const { enhanced } = await res.json();
-  const finalText = await injectPersonasIfPresent(enhanced, adapterInputs, providerId, maxTokens);
+  const finalText = await injectPersonasIfPresent(enhanced, adapterInputs, providerId, maxTokens, model);
 
   return {
     success: true,
@@ -154,7 +157,7 @@ const promptEnhancer: NodeExecutor = async (ctx) => {
 
 /** TranslatorNode: translates upstream text to target language via /api/translate. */
 const translator: NodeExecutor = async (ctx) => {
-  const { nodeData, inputs, providerId } = ctx;
+  const { nodeData, inputs, providerId, model } = ctx;
   const language = (nodeData.language as string) || "";
   const maxTokens = (nodeData.maxTokens as number) || undefined;
   const upstreamText = mergeInputText(inputs);
@@ -178,6 +181,7 @@ const translator: NodeExecutor = async (ctx) => {
       text: upstreamText,
       language: languageName,
       providerId,
+      ...(model && { model }),
       ...(maxTokens && { maxTokens }),
     }),
   });
@@ -196,7 +200,7 @@ const translator: NodeExecutor = async (ctx) => {
 
 /** ImageDescriberNode: uploads image to /api/describe, outputs text description. */
 const imageDescriber: NodeExecutor = async (ctx) => {
-  const { nodeData, providerId } = ctx;
+  const { nodeData, providerId, model } = ctx;
   const image = nodeData.image as string;
 
   if (!image) {
@@ -211,6 +215,7 @@ const imageDescriber: NodeExecutor = async (ctx) => {
     body: JSON.stringify({
       images: [{ data: image, filename: "image.jpg", type: "reference" }],
       providerId,
+      ...(model && { model }),
     }),
   });
 
@@ -222,7 +227,7 @@ const imageDescriber: NodeExecutor = async (ctx) => {
   const { description } = await res.json();
   return {
     success: true,
-    output: { text: description, durationMs: Date.now() - start },
+    output: { text: description, image, durationMs: Date.now() - start },
   };
 };
 
@@ -234,7 +239,7 @@ const textOutput: NodeExecutor = async (ctx) => {
 
 /** StoryTellerNode: creative prompt generator — different output every time. */
 const storyTeller: NodeExecutor = async (ctx) => {
-  const { nodeData, inputs, adapterInputs, providerId } = ctx;
+  const { nodeData, inputs, adapterInputs, providerId, model } = ctx;
   const idea = (nodeData.idea as string) || "";
   const tags = (nodeData.tags as string) || "";
   const maxTokens = (nodeData.maxTokens as number) || undefined;
@@ -249,7 +254,7 @@ const storyTeller: NodeExecutor = async (ctx) => {
   const res = await fetch("/api/storyteller", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text, tags: tags || undefined, providerId, ...(maxTokens && { maxTokens }) }),
+    body: JSON.stringify({ text, tags: tags || undefined, providerId, ...(model && { model }), ...(maxTokens && { maxTokens }) }),
   });
 
   if (!res.ok) {
@@ -258,7 +263,7 @@ const storyTeller: NodeExecutor = async (ctx) => {
   }
 
   const { story } = await res.json();
-  const finalText = await injectPersonasIfPresent(story, adapterInputs, providerId, maxTokens);
+  const finalText = await injectPersonasIfPresent(story, adapterInputs, providerId, maxTokens, model);
 
   return {
     success: true,
@@ -268,7 +273,7 @@ const storyTeller: NodeExecutor = async (ctx) => {
 
 /** GrammarFixNode: fixes grammar & typos in English text via /api/grammar-fix. */
 const grammarFix: NodeExecutor = async (ctx) => {
-  const { nodeData, inputs, providerId } = ctx;
+  const { nodeData, inputs, providerId, model } = ctx;
   const style = (nodeData.style as string) || "";
   const maxTokens = (nodeData.maxTokens as number) || undefined;
   const upstreamText = mergeInputText(inputs);
@@ -285,6 +290,7 @@ const grammarFix: NodeExecutor = async (ctx) => {
       text: upstreamText,
       style: style || undefined,
       providerId,
+      ...(model && { model }),
       ...(maxTokens && { maxTokens }),
     }),
   });
@@ -318,6 +324,135 @@ const sceneBuilder: NodeExecutor = async (ctx) => {
   return { success: true, output: { text } };
 };
 
+/** CompressorNode: compresses text via /api/compress when over threshold (2500 chars), otherwise passes through. */
+const compressor: NodeExecutor = async (ctx) => {
+  const { inputs, providerId, model } = ctx;
+  const maxTokens = (ctx.nodeData.maxTokens as number) || undefined;
+  const upstreamText = mergeInputText(inputs);
+
+  if (!upstreamText) {
+    return { success: false, output: { error: "No input text to compress" } };
+  }
+
+  const THRESHOLD = 2500;
+
+  // Below threshold — pass through unchanged
+  if (upstreamText.length <= THRESHOLD) {
+    return { success: true, output: { text: upstreamText } };
+  }
+
+  const start = Date.now();
+  const res = await fetch("/api/compress", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      text: upstreamText,
+      providerId,
+      ...(model && { model }),
+      ...(maxTokens && { maxTokens }),
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: "Compression failed" }));
+    return { success: false, output: { error: err.error || "Compression failed" } };
+  }
+
+  const { compressed } = await res.json();
+  return {
+    success: true,
+    output: { text: compressed, durationMs: Date.now() - start },
+  };
+};
+
+/** ImageGeneratorNode: takes upstream text prompt and generates an image via /api/generate-image. */
+const imageGenerator: NodeExecutor = async (ctx) => {
+  const { nodeData, inputs } = ctx;
+  const upstreamText = mergeInputText(inputs);
+  const directPrompt = (nodeData.prompt as string) || "";
+  const prompt = upstreamText || directPrompt;
+
+  if (!prompt.trim()) {
+    return { success: false, output: { error: "No prompt text to generate from" } };
+  }
+
+  const imageProviderId = (nodeData.imageProviderId as string) || undefined;
+  const imageModel = (nodeData.imageModel as string) || undefined;
+  const width = (nodeData.width as number) || undefined;
+  const height = (nodeData.height as number) || undefined;
+
+  const start = Date.now();
+  const res = await fetch("/api/generate-image", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      prompt,
+      ...(imageProviderId && { providerId: imageProviderId }),
+      ...(imageModel && { model: imageModel }),
+      ...(width && { width }),
+      ...(height && { height }),
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: "Image generation failed" }));
+    return { success: false, output: { error: err.error || "Image generation failed" } };
+  }
+
+  const { imageData } = await res.json();
+  return {
+    success: true,
+    output: { image: imageData, text: prompt, durationMs: Date.now() - start },
+  };
+};
+
+/** PersonasReplacerNode: analyzes upstream image, replaces characters with connected personas via /api/replace. */
+const personasReplacer: NodeExecutor = async (ctx) => {
+  const { nodeData, inputs, adapterInputs, providerId, model } = ctx;
+
+  // Prefer upstream image, fall back to directly uploaded image on the node
+  const upstreamImage = inputs.find((inp) => inp.image)?.image;
+  const directImage = nodeData.image as string;
+  const targetImage = upstreamImage || directImage;
+
+  if (!targetImage) {
+    return { success: false, output: { error: "No image — upload one or connect an image source" } };
+  }
+
+  const personas = extractPersonas(adapterInputs);
+  if (personas.length === 0) {
+    return { success: false, output: { error: "No personas connected — attach character adapters" } };
+  }
+
+  // If upstream already has a text description, pass it so the replace route
+  // can do text-only persona swap instead of re-analyzing the image with VLM
+  const upstreamText = mergeInputText(inputs);
+
+  const start = Date.now();
+  const res = await fetch("/api/replace", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      personas,
+      targetImage,
+      providerId,
+      ...(model && { model }),
+      ...(upstreamText && { upstreamDescription: upstreamText }),
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: "Persona replacement failed" }));
+    return { success: false, output: { error: err.error || "Persona replacement failed" } };
+  }
+
+  const { description } = await res.json();
+  return {
+    success: true,
+    output: { text: description, durationMs: Date.now() - start },
+  };
+};
+
 /** Registry mapping node type → executor. Groups are intentionally absent. */
 export const executorRegistry: ExecutorRegistry = {
   initialPrompt,
@@ -329,4 +464,7 @@ export const executorRegistry: ExecutorRegistry = {
   storyTeller,
   grammarFix,
   sceneBuilder,
+  compressor,
+  imageGenerator,
+  personasReplacer,
 };

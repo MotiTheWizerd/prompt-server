@@ -4,22 +4,18 @@ import { callClaudeText } from "@/lib/claude-code/api-adapter";
 
 export async function POST(request: NextRequest) {
   try {
-    const { text, style, providerId = DEFAULT_PROVIDER, model, maxTokens } = await request.json();
+    const { text, providerId = DEFAULT_PROVIDER, model, maxTokens } = await request.json();
 
     if (!text) {
       return NextResponse.json({ error: "Text is required" }, { status: 400 });
     }
 
-    const styleInstruction = style
-      ? ` Adjust the tone to be ${style}.`
-      : "";
-
-    const prompt = `Fix all grammar, spelling, and punctuation errors in the following English text.${styleInstruction} Output ONLY the corrected text, nothing else. Do not add explanations, notes, or formatting. Keep the output under 2500 characters.\n\n${text}`;
+    const prompt = `Compress the following text to be shorter and more concise while preserving ALL information, meaning, and key details. Do not omit any facts, names, or important context. Output ONLY the compressed text, nothing else. No explanations or notes.\n\n${text}`;
 
     // === Claude CLI provider ===
     if (providerId === "claude") {
-      const fixed = await callClaudeText(prompt);
-      return NextResponse.json({ fixed });
+      const compressed = await callClaudeText(prompt);
+      return NextResponse.json({ compressed });
     }
 
     // === OpenAI-compatible providers (Mistral, GLM, OpenRouter) ===
@@ -33,12 +29,12 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json({
-      fixed: extractTextContent(response.choices[0]?.message?.content),
+      compressed: extractTextContent(response.choices[0]?.message?.content),
     });
   } catch (error: unknown) {
-    console.error("Grammar Fix API Error:", error);
+    console.error("Compress API Error:", error);
     const errorMessage =
-      error instanceof Error ? error.message : "Failed to fix grammar";
+      error instanceof Error ? error.message : "Failed to compress text";
     return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

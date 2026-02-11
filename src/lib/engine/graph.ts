@@ -9,8 +9,13 @@ export function buildExecutionPlan(
   nodes: Node[],
   edges: Edge[]
 ): ExecutionStep[] {
-  // Filter out group nodes — they're containers, not executable
-  const executableNodes = nodes.filter((n) => n.type !== "group");
+  // Filter out group nodes and deduplicate by ID (prevents false cycle detection)
+  const seen = new Set<string>();
+  const executableNodes = nodes.filter((n) => {
+    if (n.type === "group" || seen.has(n.id)) return false;
+    seen.add(n.id);
+    return true;
+  });
   const nodeIds = new Set(executableNodes.map((n) => n.id));
 
   // Build adjacency list and in-degree map

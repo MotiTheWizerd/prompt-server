@@ -2,6 +2,7 @@ import type { Node, Edge } from "@xyflow/react";
 import type { NodeOutput, StatusCallback } from "./types";
 import { buildExecutionPlan } from "./graph";
 import { executorRegistry } from "./executors";
+import { resolveModelForNode } from "../model-defaults";
 
 /**
  * Execute the node graph in topological order.
@@ -63,11 +64,19 @@ export async function executeGraph(
     onStatus(nodeId, "running");
 
     try {
+      const resolved = resolveModelForNode(
+        nodeType,
+        node.data as Record<string, unknown>,
+        providerId
+      );
+
       const result = await executor({
         nodeData: node.data as Record<string, unknown>,
         inputs,
         adapterInputs,
-        providerId,
+        providerId: resolved.providerId,
+        model: resolved.model,
+        nodeType,
       });
 
       outputs[nodeId] = result.output;

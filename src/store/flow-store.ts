@@ -90,10 +90,7 @@ function patchFlow(
   return { ...flows, [flowId]: { ...flow, ...patch } };
 }
 
-// ---- Initial state ----
-
-const defaultFlowId = generateFlowId();
-const defaultFlow = createDefaultFlow(defaultFlowId, "Flow 1");
+// ---- Initial state (empty — dashboard populates after loading) ----
 
 // ---- Store interface ----
 
@@ -128,12 +125,22 @@ interface FlowStoreState {
   getFlowData: (flowId: string) => FlowData | undefined;
   loadFlowData: (flowData: FlowData) => void;
   markClean: (flowId: string) => void;
+
+  // Lightbox
+  lightboxImage: string | null;
+  openLightbox: (image: string) => void;
+  closeLightbox: () => void;
 }
 
 export const useFlowStore = create<FlowStoreState>((set, get) => ({
-  activeFlowId: defaultFlowId,
-  flowIds: [defaultFlowId],
-  flows: { [defaultFlowId]: defaultFlow },
+  activeFlowId: "",
+  flowIds: [],
+  flows: {},
+
+  // --- Lightbox ---
+  lightboxImage: null,
+  openLightbox: (image) => set({ lightboxImage: image }),
+  closeLightbox: () => set({ lightboxImage: null }),
 
   // --- Active flow graph actions ---
 
@@ -336,8 +343,21 @@ export const useFlowStore = create<FlowStoreState>((set, get) => ({
     const flowId = activeFlowId; // capture for closure
     const { nodes, edges, execution } = flow;
 
-    // Compute which nodes are downstream of the trigger (inclusive)
+    // Compute which nodes are downstream of the trigger (inclusive),
+    // plus any adapter source nodes that feed into the downstream set
     const downstreamIds = getDownstreamNodes(triggerNodeId, nodes, edges);
+
+    // Include adapter sources: if a downstream node has adapter inputs,
+    // the source nodes must also execute so their outputs are available
+    for (const edge of edges) {
+      if (
+        downstreamIds.has(edge.target) &&
+        (edge.targetHandle || "").startsWith("adapter-") &&
+        !downstreamIds.has(edge.source)
+      ) {
+        downstreamIds.add(edge.source);
+      }
+    }
 
     // Only clear textOutput nodes in the downstream subgraph
     const clearedNodes = nodes.map((n) =>
@@ -520,13 +540,28 @@ export const useFlowStore = create<FlowStoreState>((set, get) => ({
   loadFlowData: (flowData: FlowData) => {
     const state = get();
     const alreadyExists = state.flowIds.includes(flowData.id);
+
+    // Deduplicate nodes by ID (corrupted saves can contain duplicates)
+    const seenIds = new Set<string>();
+    const dedupedNodes = flowData.nodes.filter((n) => {
+      if (seenIds.has(n.id)) return false;
+      seenIds.add(n.id);
+      return true;
+    });
+    const cleanedData = dedupedNodes.length < flowData.nodes.length
+      ? { ...flowData, nodes: dedupedNodes }
+      : flowData;
+
+    const isFirstFlow = state.flowIds.length === 0;
     set({
       flowIds: alreadyExists
         ? state.flowIds
-        : [...state.flowIds, flowData.id],
-      flows: { ...state.flows, [flowData.id]: flowData },
+        : [...state.flowIds, cleanedData.id],
+      flows: { ...state.flows, [cleanedData.id]: cleanedData },
+      // Activate the first loaded flow if store was empty
+      ...(isFirstFlow && { activeFlowId: cleanedData.id }),
     });
-    eventBus.emit("flow:switched", { flowId: flowData.id });
+    eventBus.emit("flow:switched", { flowId: cleanedData.id });
   },
 
   markClean: (flowId: string) => {

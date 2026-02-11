@@ -118,8 +118,29 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    scrollbar-width: thin;
+    scrollbar-color: rgb(55 65 81 / 0.5) transparent;
   }
   body {
     @apply bg-background text-foreground;
+  }
+
+  /* Webkit scrollbar (Chrome, Edge, Safari) */
+  *::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: rgb(55 65 81 / 0.5);
+    border-radius: 9999px;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background: rgb(75 85 99 / 0.7);
+  }
+  *::-webkit-scrollbar-corner {
+    background: transparent;
   }
 }

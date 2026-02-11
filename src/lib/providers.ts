@@ -46,6 +46,15 @@ const providerConfigs: Record<string, Omit<Provider, "client"> & { baseURL: stri
     baseURL: "https://openrouter.ai/api/v1",
     apiKeyEnv: "OPENROUTER_API_KEY",
   },
+  huggingface: {
+    id: "huggingface",
+    name: "HuggingFace (Qwen)",
+    textModel: "Qwen/Qwen2.5-72B-Instruct",
+    visionModel: "Qwen/Qwen2.5-VL-7B-Instruct",
+    supportsVision: true,
+    baseURL: "https://router.huggingface.co/v1",
+    apiKeyEnv: "HF_API_KEY",
+  },
 };
 
 // Initialize clients lazily
