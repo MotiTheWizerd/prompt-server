@@ -376,8 +376,8 @@ const imageGenerator: NodeExecutor = async (ctx) => {
     return { success: false, output: { error: "No prompt text to generate from" } };
   }
 
-  const imageProviderId = (nodeData.imageProviderId as string) || undefined;
-  const imageModel = (nodeData.imageModel as string) || undefined;
+  const imageProviderId = (nodeData.providerId as string) || undefined;
+  const imageModel = (nodeData.model as string) || undefined;
   const width = (nodeData.width as number) || undefined;
   const height = (nodeData.height as number) || undefined;
 

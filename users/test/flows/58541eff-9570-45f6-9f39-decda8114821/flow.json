@@ -82,8 +82,8 @@
       "id": "compressor-115",
       "type": "compressor",
       "position": {
-        "x": 513.9218881740768,
-        "y": 428.59234068910393
+        "x": 624.7605526789998,
+        "y": 505.1237995139317
       },
       "data": {
         "label": "compressor"
@@ -99,15 +99,17 @@
       "id": "imageGenerator-117",
       "type": "imageGenerator",
       "position": {
-        "x": 668.3541335569573,
-        "y": -497.3372371337179
+        "x": 1072.8221816984849,
+        "y": 294.66235378390337
       },
       "data": {
-        "label": "imageGenerator"
+        "label": "imageGenerator",
+        "providerId": "huggingface",
+        "model": "zai-org/GLM-Image"
       },
       "measured": {
         "width": 280,
-        "height": 426
+        "height": 153
       },
       "selected": true,
       "dragging": false
@@ -161,6 +163,6 @@
     }
   ],
   "providerId": "mistral",
-  "updatedAt": 1770932024825,
-  "createdAt": 1770932018751
+  "updatedAt": 1770934599299,
+  "createdAt": 1770934594594
 }

@@ -29,6 +29,11 @@ export interface ImageProvider {
   ): Promise<ImageGenResult>;
 }
 
+// HF router provider per model (default: "hf-inference")
+const MODEL_ROUTER_PROVIDER: Record<string, string> = {
+  "zai-org/GLM-Image": "fal-ai",
+};
+
 // === HuggingFace Provider ===
 
 const huggingface: ImageProvider = {
@@ -37,12 +42,15 @@ const huggingface: ImageProvider = {
   models: [
     { id: "black-forest-labs/FLUX.1-schnell", name: "FLUX.1 Schnell (fast)" },
     { id: "black-forest-labs/FLUX.1-dev", name: "FLUX.1 Dev (quality)" },
+    { id: "zai-org/GLM-Image", name: "GLM-Image 16B" },
   ],
   async generate(prompt, model, options) {
     const apiKey = process.env.HF_API_KEY;
     if (!apiKey) throw new Error("HF_API_KEY not set");
 
-    const url = `https://router.huggingface.co/hf-inference/models/${model}`;
+    // Different models are served by different HF router providers
+    const routerProvider = MODEL_ROUTER_PROVIDER[model] || "hf-inference";
+    const url = `https://router.huggingface.co/${routerProvider}/models/${model}`;
 
     const res = await fetch(url, {
       method: "POST",

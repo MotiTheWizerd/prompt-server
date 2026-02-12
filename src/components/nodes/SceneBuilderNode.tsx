@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { type NodeProps } from "@xyflow/react";
 import { CloudSun } from "lucide-react";
 import { BaseNode } from "./BaseNode";
+import { NodeSettingsPopover } from "./NodeSettingsPopover";
 import { useFlowStore } from "@/store/flow-store";
 import { SCENE_OPTIONS, type SceneCategory } from "@/lib/scene-prompts";
 
@@ -49,36 +51,52 @@ export function SceneBuilderNode({ id, data }: NodeProps) {
   const errorMessage = useFlowStore((s) => s.flows[s.activeFlowId]?.execution.nodeOutputs[id]?.error);
   const outputText = useFlowStore((s) => s.flows[s.activeFlowId]?.execution.nodeOutputs[id]?.text);
   const set = (key: string, value: string) => updateNodeData(id, { [key]: value });
+  const userProviderId = data.providerId as string | undefined;
+  const userModel = data.model as string | undefined;
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   return (
-    <BaseNode
-      title="Scene Builder"
-      icon={<CloudSun className="w-4 h-4 text-sky-400" />}
-      color="ring-sky-500/30"
-      hasInput={false}
-      hasOutput={true}
-      onTrigger={() => runFromNode(id)}
-      status={status}
-      errorMessage={errorMessage}
-      outputText={outputText}
-    >
-      <div className="space-y-1.5">
-        <div className="text-[10px] text-gray-500">
-          Build a scene atmosphere description
+    <div className="relative">
+      <BaseNode
+        title="Scene Builder"
+        icon={<CloudSun className="w-4 h-4 text-sky-400" />}
+        color="ring-sky-500/30"
+        hasInput={false}
+        hasOutput={true}
+        onSettingsClick={() => setSettingsOpen(!settingsOpen)}
+        onTrigger={() => runFromNode(id)}
+        status={status}
+        errorMessage={errorMessage}
+        outputText={outputText}
+      >
+        <div className="space-y-1.5">
+          <div className="text-[10px] text-gray-500">
+            Build a scene atmosphere description
+          </div>
+          {CATEGORY_ORDER.map((key) => {
+            const config = SCENE_OPTIONS[key];
+            return (
+              <SceneSelect
+                key={key}
+                label={config.label}
+                value={(data[key] as string) || ""}
+                options={config.options}
+                onChange={(v) => set(key, v)}
+              />
+            );
+          })}
         </div>
-        {CATEGORY_ORDER.map((key) => {
-          const config = SCENE_OPTIONS[key];
-          return (
-            <SceneSelect
-              key={key}
-              label={config.label}
-              value={(data[key] as string) || ""}
-              options={config.options}
-              onChange={(v) => set(key, v)}
-            />
-          );
-        })}
-      </div>
-    </BaseNode>
+      </BaseNode>
+      {settingsOpen && (
+        <NodeSettingsPopover
+          nodeType="sceneBuilder"
+          providerId={userProviderId}
+          model={userModel}
+          onProviderChange={(pid) => updateNodeData(id, { providerId: pid })}
+          onModelChange={(m) => updateNodeData(id, { model: m || undefined })}
+          onClose={() => setSettingsOpen(false)}
+        />
+      )}
+    </div>
   );
 }

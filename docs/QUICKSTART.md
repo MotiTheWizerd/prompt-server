@@ -18,7 +18,7 @@ A visual, node-based AI prompt pipeline builder. Design multi-step text and imag
 | Notifications      | Sonner (toast)                                                |
 | AI SDK             | OpenAI SDK 6 (compatible endpoints), Claude Agent SDK         |
 | AI Text Providers  | Mistral AI, GLM (Zhipu AI), OpenRouter, HuggingFace (Qwen)   |
-| AI Image Providers | HuggingFace (FLUX.1-schnell, FLUX.1-dev)                     |
+| AI Image Providers | HuggingFace (FLUX.1-schnell, FLUX.1-dev, GLM-Image 16B via fal-ai) |
 | Persistence        | File-based (server-side JSON files, auto-save via event bus)  |
 
 ---
@@ -42,7 +42,7 @@ GLM_API_KEY=your_glm_api_key
 OPENROUTER_API_KEY=your_openrouter_api_key
 HF_API_KEY=your_huggingface_api_key
 
-# HF_API_KEY is also used for image generation (FLUX models)
+# HF_API_KEY is also used for image generation (FLUX models, GLM-Image via fal-ai router)
 ```
 
 | Provider             | Get a key at                             | Used for                     |
@@ -50,7 +50,7 @@ HF_API_KEY=your_huggingface_api_key
 | Mistral AI           | https://console.mistral.ai/              | Text (default for most nodes)|
 | GLM (Zhipu AI)       | https://open.bigmodel.cn/                | Text + Vision                |
 | OpenRouter           | https://openrouter.ai/                   | Text (free tier available)   |
-| HuggingFace          | https://huggingface.co/settings/tokens   | Text (Qwen) + Image (FLUX)  |
+| HuggingFace          | https://huggingface.co/settings/tokens   | Text (Qwen) + Image (FLUX, GLM-Image) |
 | Claude CLI           | Local Claude CLI install                 | Vision (imageDescriber, personasReplacer) |
 
 ### 3. Run the dev server
@@ -117,7 +117,7 @@ Open http://localhost:3000 → redirects to `/dashboard`
 | Auto-Save        | `src/lib/auto-save.ts`          | Debounced file persistence triggered by `flow:dirty` events      |
 | Undo Manager     | `src/lib/undo-manager.ts`       | Per-flow undo/redo with debounced snapshots and batch grouping   |
 | Text Providers   | `src/lib/providers.ts`          | OpenAI-compatible client factory for all text AI providers       |
-| Image Providers  | `src/lib/image-providers.ts`    | Universal image generation registry (HuggingFace FLUX)           |
+| Image Providers  | `src/lib/image-providers.ts`    | Universal image generation registry (HuggingFace FLUX + GLM-Image) |
 
 ---
 
@@ -154,7 +154,7 @@ Nodes are the building blocks of a flow. Each node has typed input/output handle
 | Node               | Description                                                                                   |
 | ------------------ | --------------------------------------------------------------------------------------------- |
 | **Text Output**    | Terminal sink — displays the final text result. Copy to clipboard support.                    |
-| **Image Generator**| Takes upstream text prompt and generates an image via HuggingFace FLUX models.                |
+| **Image Generator**| Takes upstream text prompt and generates an image via HuggingFace (FLUX, GLM-Image). Per-node model selection via settings. |
 
 ### Utility Nodes
 
@@ -200,9 +200,11 @@ All text providers use OpenAI-compatible APIs via the OpenAI SDK.
 
 ### Image Providers
 
-| Provider    | Models                                      |
-| ----------- | ------------------------------------------- |
-| HuggingFace | FLUX.1-schnell (fast), FLUX.1-dev (quality) |
+| Provider    | Models                                                          | HF Router Provider |
+| ----------- | --------------------------------------------------------------- | ------------------ |
+| HuggingFace | FLUX.1-schnell (fast), FLUX.1-dev (quality), GLM-Image 16B     | hf-inference / fal-ai |
+
+> **Note:** Different image models may be served by different HuggingFace router providers. FLUX models use `hf-inference`, while GLM-Image routes through `fal-ai`. This is handled automatically via the `MODEL_ROUTER_PROVIDER` map in `image-providers.ts`.
 
 ### Per-Node Model Defaults
 
@@ -250,9 +252,10 @@ src/
 │       ├── grammar-fix/route.ts            # POST — grammar correction
 │       ├── compress/route.ts               # POST — text compression
 │       ├── inject-persona/route.ts         # POST — persona injection into text
-│       ├── generate-image/route.ts         # POST — image generation (FLUX)
+│       ├── generate-image/route.ts         # POST — image generation (FLUX, GLM-Image)
 │       ├── pipeline/route.ts               # POST — legacy two-step pipeline
-│       ├── providers/route.ts              # GET — available AI providers
+│       ├── providers/route.ts              # GET — available text AI providers
+│       ├── image-providers/route.ts        # GET — available image AI providers
 │       ├── characters/route.ts             # GET/POST — character CRUD
 │       ├── characters/[id]/image/route.ts  # GET — character avatar image
 │       └── claude-code/test-claude/route.ts # GET — Claude CLI connectivity test
@@ -429,7 +432,8 @@ The typed event bus (`src/lib/event-bus.ts`) decouples the UI, persistence, and 
 - **Status Indicators** — Each node shows its execution state (pending → running spinner → green complete / red error)
 - **Toast Notifications** — Sonner-based themed toasts for pipeline completion, errors, and info
 - **Image Upload** — Drag & drop, Ctrl+V paste from clipboard, or click to pick files
-- **Provider Selection** — Global provider selector in the toolbar; per-node provider + model override via settings popover (shadcn combobox dropdowns)
+- **Provider Selection** — Global provider selector in the toolbar; per-node provider + model override via settings popover on all nodes (shadcn combobox dropdowns). Image Generator nodes show image providers; text nodes show text providers.
+- **LLM Indicator** — Nodes that use AI models display a brain icon in the header
 - **Image Lightbox** — Click generated images for full-screen preview
 - **Copy to Clipboard** — TextOutput nodes have a one-click copy button
 - **Character Management** — Create and manage consistent character personas at `/dashboard/characters`

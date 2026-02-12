@@ -15,7 +15,7 @@ import type { ProviderModel } from "@/lib/providers";
 interface ProviderInfo {
   id: string;
   name: string;
-  supportsVision: boolean;
+  supportsVision?: boolean;
   models?: ProviderModel[];
 }
 
@@ -24,33 +24,35 @@ interface ProviderModelSelectProps {
   model: string;
   onProviderChange: (providerId: string) => void;
   onModelChange: (model: string) => void;
+  endpoint?: string; // API endpoint to fetch providers from (default: "/api/providers")
 }
 
-// Module-level cache so we fetch once across all instances
-let cachedProviders: ProviderInfo[] | null = null;
+// Module-level cache keyed by endpoint so we fetch once per source
+const providerCache = new Map<string, ProviderInfo[]>();
 
 export function ProviderModelSelect({
   providerId,
   model,
   onProviderChange,
   onModelChange,
+  endpoint = "/api/providers",
 }: ProviderModelSelectProps) {
   const [providers, setProviders] = useState<ProviderInfo[]>(
-    cachedProviders || []
+    providerCache.get(endpoint) || []
   );
   const [providerOpen, setProviderOpen] = useState(false);
   const [modelOpen, setModelOpen] = useState(false);
 
   useEffect(() => {
-    if (cachedProviders) return;
-    fetch("/api/providers")
+    if (providerCache.has(endpoint)) return;
+    fetch(endpoint)
       .then((r) => r.json())
       .then((data) => {
-        cachedProviders = data.providers;
+        providerCache.set(endpoint, data.providers);
         setProviders(data.providers);
       })
       .catch(() => {});
-  }, []);
+  }, [endpoint]);
 
   const activeProvider = providers.find((p) => p.id === providerId);
   const models = activeProvider?.models ?? [];

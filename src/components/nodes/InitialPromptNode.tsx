@@ -34,6 +34,7 @@ export function InitialPromptNode({ id, data }: NodeProps) {
         onAdapterAdd={() => updateNodeData(id, { adapterCount: adapterCount + 1 })}
         onSettingsClick={() => setSettingsOpen(!settingsOpen)}
         onTrigger={() => runFromNode(id)}
+        usesLLM
         status={status}
         errorMessage={errorMessage}
         outputText={outputText}

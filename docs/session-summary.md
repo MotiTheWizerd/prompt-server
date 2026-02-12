@@ -1,106 +1,106 @@
 # Session Summary
 
-## 1. Removed Adapter Input Count from Node Settings
+## 1. Added GLM-Image 16B as Image Generation Model
 
-The `NodeSettingsPopover` previously had a 0-5 button grid for selecting the number of adapter input connectors. Since there's already a ghost "+" button directly on each node for adding adapters, this was redundant.
+Researched and added `zai-org/GLM-Image` (16B params, autoregressive + diffusion architecture) as a new image generation option through HuggingFace's router.
 
 ### Changes
 
-- Removed `adapterCount` and `onAdapterCountChange` props from `NodeSettingsPopover`
-- Removed the `MAX_ADAPTERS` constant and Adapter Inputs UI section
-- Cleaned up all 4 node files that passed these props (PromptEnhancer, StoryTeller, InitialPrompt, PersonasReplacer)
+- Added GLM-Image 16B to the HuggingFace image provider's model list
+- Added `MODEL_ROUTER_PROVIDER` mapping — GLM-Image is served by `fal-ai` through HF's router (not `hf-inference` like FLUX models)
+- The generate function now dynamically selects the correct router provider per model
 
-**Files**: `NodeSettingsPopover.tsx`, `PromptEnhancerNode.tsx`, `StoryTellerNode.tsx`, `InitialPromptNode.tsx`, `PersonasReplacerNode.tsx`
+**File**: `image-providers.ts`
 
 ---
 
-## 2. Moved Settings Popover to Top
+## 2. Added `usesLLM` Brain Icon to ImageGeneratorNode + InitialPromptNode
 
-The settings popover was positioned below the node (`top-full mt-1`). Moved it above the node for better UX.
+Both nodes use AI models but were missing the brain indicator icon in the header.
 
 ### Changes
 
-- Changed CSS positioning from `top-full mt-1` to `bottom-full mb-1`
+- Added `usesLLM` prop to `BaseNode` in both `ImageGeneratorNode` and `InitialPromptNode`
 
-**File**: `NodeSettingsPopover.tsx`
+**Files**: `ImageGeneratorNode.tsx`, `InitialPromptNode.tsx`
 
 ---
 
-## 3. Removed Max Tokens from Settings
+## 3. Added Settings Button + Popover to All Nodes
 
-Stripped out the Max Tokens UI (preset buttons + number input) to start fresh with new settings content.
+Previously only 4 nodes (InitialPrompt, PromptEnhancer, StoryTeller, PersonasReplacer) had the settings gear icon with per-node provider/model selection. Now all BaseNode-based nodes have it.
 
-### Changes
+### Nodes Updated
 
-- Removed `maxTokens`, `onMaxTokensChange` props and `TOKEN_PRESETS` constant
-- Cleaned up all node files that passed these props
+- `TranslatorNode.tsx`
+- `GrammarFixNode.tsx`
+- `CompressorNode.tsx`
+- `ImageDescriberNode.tsx`
+- `ImageGeneratorNode.tsx`
+- `SceneBuilderNode.tsx`
+- `TextOutputNode.tsx`
 
-**Files**: `NodeSettingsPopover.tsx`, `PromptEnhancerNode.tsx`, `StoryTellerNode.tsx`, `InitialPromptNode.tsx`
+### Pattern Applied to Each
 
----
+- Added `useState` for `settingsOpen`
+- Added `data.providerId` / `data.model` extraction
+- Wrapped `BaseNode` in `<div className="relative">`
+- Added `onSettingsClick` prop to `BaseNode`
+- Added `NodeSettingsPopover` below `BaseNode`
 
-## 4. Per-Node Provider + Model Selection
+### Skipped
 
-Added the ability for users to override the default provider and model on each LLM node via the settings popover.
-
-### How It Works
-
-- Each node type already had defaults in `model-defaults.ts` (e.g., StoryTeller -> `labs-mistral-small-creative`)
-- `resolveModelForNode()` in the runner already supported node data overrides — just needed UI
-- The popover now shows a Provider dropdown and a Model dropdown
-- Selecting a provider/model writes to `nodeData.providerId` / `nodeData.model`
-- Resolution priority remains: node data override -> node-type default -> global provider fallback
-
-### Changes
-
-- **`providers.ts`** — Added explicit model lists (`ProviderModel[]`) for all providers (Mistral, OpenRouter, HuggingFace were missing them). Exported `ProviderModel` type.
-- **`NodeSettingsPopover.tsx`** — Added `nodeType`, `providerId`, `model`, `onProviderChange`, `onModelChange` props. Resolves defaults from `NODE_MODEL_DEFAULTS` and delegates rendering to `ProviderModelSelect`.
-- **4 node files** — Each now reads `data.providerId` / `data.model` and passes them to the popover.
-
-**Files**: `providers.ts`, `NodeSettingsPopover.tsx`, `PromptEnhancerNode.tsx`, `StoryTellerNode.tsx`, `InitialPromptNode.tsx`, `PersonasReplacerNode.tsx`
+- **ConsistentCharacterNode** — uses custom compact layout (no BaseNode)
+- **GroupNode** — pure visual container
 
 ---
 
-## 5. Reusable ProviderModelSelect Component
+## 4. Image Provider API Endpoint
 
-Extracted the provider + model dropdowns into a reusable shared component.
+Created a new API route so the Image Generator's settings popover can fetch image providers (separate from text providers).
 
 ### Changes
 
-- Created `src/components/shared/ProviderModelSelect.tsx`
-- Module-level fetch cache (same pattern as existing `ProviderSelect`)
-- `NodeSettingsPopover` now just handles the popover shell and delegates to `ProviderModelSelect`
+- Created `src/app/api/image-providers/route.ts` — returns image providers from `getAvailableImageProviders()`
 
-**Files**: `ProviderModelSelect.tsx`, `NodeSettingsPopover.tsx`
+**File**: `api/image-providers/route.ts`
 
 ---
 
-## 6. Upgraded to Shadcn Combobox Dropdowns
+## 5. ProviderModelSelect — Configurable Endpoint
 
-Replaced native `<select>` elements (which had ugly, unstyled OS-default dropdown menus) with proper shadcn **Popover + Command** comboboxes.
+The `ProviderModelSelect` component previously hardcoded `/api/providers` (text only). Updated it to accept an `endpoint` prop with per-endpoint caching.
 
 ### Changes
 
-- Rebuilt `ProviderModelSelect` using shadcn `Popover` + `Command` (already installed: `radix-ui`, `cmdk`)
-- Fully styled dark dropdown menus matching the app theme (`bg-gray-800`, `border-gray-600`)
-- Blue check mark on selected item
-- Keyboard navigation via cmdk
-- Compact sizing (`text-[10px]`, `py-1`)
-- Dropdowns render via Radix portal so they don't get clipped by nodes
+- Added `endpoint` prop (default: `"/api/providers"`)
+- Replaced single `cachedProviders` variable with a `Map<string, ProviderInfo[]>` keyed by endpoint
+- Made `supportsVision` optional in `ProviderInfo` (image providers don't have this field)
 
 **File**: `ProviderModelSelect.tsx`
 
 ---
 
-## 7. Compact Design Pass
+## 6. NodeSettingsPopover — Image Node Detection
 
-Tightened the overall settings popover and dropdown sizing.
+The settings popover now detects image generator nodes and routes to the correct provider endpoint.
 
 ### Changes
 
-- Inline labels (side-by-side with dropdowns instead of stacked)
-- Smaller text sizes: labels `9px`, dropdowns `10px`
-- Tighter padding: popover `p-2.5`, width `w-52`
-- Subtle borders: `border-gray-600/50` with `bg-gray-700/40`
+- Added `isImageNode` check (`nodeType === "imageGenerator"`)
+- Routes to `/api/image-providers` for image nodes, `/api/providers` for text nodes
+- Defaults to `"huggingface"` provider for image nodes instead of `"mistral"`
 
-**Files**: `ProviderModelSelect.tsx`, `NodeSettingsPopover.tsx`
+**File**: `NodeSettingsPopover.tsx`
+
+---
+
+## 7. Fixed ImageGenerator Executor — Provider/Model Pass-Through
+
+The Image Generator executor was reading `nodeData.imageProviderId` / `nodeData.imageModel` but the settings UI writes to `nodeData.providerId` / `nodeData.model`. The node's model selection was silently ignored.
+
+### Changes
+
+- Changed executor to read `nodeData.providerId` and `nodeData.model` (consistent with all other nodes)
+
+**File**: `executors.ts`

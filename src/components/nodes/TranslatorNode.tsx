@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { type NodeProps } from "@xyflow/react";
 import { Languages } from "lucide-react";
 import { BaseNode } from "./BaseNode";
+import { NodeSettingsPopover } from "./NodeSettingsPopover";
 import { useFlowStore } from "@/store/flow-store";
 import { LanguageSelect } from "@/components/shared/LanguageSelect";
 
@@ -11,28 +13,44 @@ export function TranslatorNode({ id, data }: NodeProps) {
   const errorMessage = useFlowStore((s) => s.flows[s.activeFlowId]?.execution.nodeOutputs[id]?.error);
   const outputText = useFlowStore((s) => s.flows[s.activeFlowId]?.execution.nodeOutputs[id]?.text);
   const language = (data.language as string) || "";
+  const userProviderId = data.providerId as string | undefined;
+  const userModel = data.model as string | undefined;
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   return (
-    <BaseNode
-      title="Translator"
-      icon={<Languages className="w-4 h-4 text-orange-400" />}
-      color="ring-orange-500/30"
-      onTrigger={() => runFromNode(id)}
-      usesLLM
-      status={status}
-      errorMessage={errorMessage}
-      outputText={outputText}
-    >
-      <div className="space-y-2">
-        <div className="text-[10px] text-gray-500">
-          Translate prompt to target language
+    <div className="relative">
+      <BaseNode
+        title="Translator"
+        icon={<Languages className="w-4 h-4 text-orange-400" />}
+        color="ring-orange-500/30"
+        onSettingsClick={() => setSettingsOpen(!settingsOpen)}
+        onTrigger={() => runFromNode(id)}
+        usesLLM
+        status={status}
+        errorMessage={errorMessage}
+        outputText={outputText}
+      >
+        <div className="space-y-2">
+          <div className="text-[10px] text-gray-500">
+            Translate prompt to target language
+          </div>
+          <LanguageSelect
+            value={language}
+            onChange={(code) => updateNodeData(id, { language: code })}
+            placeholder="Target language"
+          />
         </div>
-        <LanguageSelect
-          value={language}
-          onChange={(code) => updateNodeData(id, { language: code })}
-          placeholder="Target language"
+      </BaseNode>
+      {settingsOpen && (
+        <NodeSettingsPopover
+          nodeType="translator"
+          providerId={userProviderId}
+          model={userModel}
+          onProviderChange={(pid) => updateNodeData(id, { providerId: pid })}
+          onModelChange={(m) => updateNodeData(id, { model: m || undefined })}
+          onClose={() => setSettingsOpen(false)}
         />
-      </div>
-    </BaseNode>
+      )}
+    </div>
   );
 }

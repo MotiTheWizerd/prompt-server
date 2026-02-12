@@ -24,8 +24,9 @@ export function NodeSettingsPopover({
 }: NodeSettingsPopoverProps) {
   const ref = useRef<HTMLDivElement>(null);
 
+  const isImageNode = nodeType === "imageGenerator";
   const defaults = NODE_MODEL_DEFAULTS[nodeType];
-  const activeProviderId = providerId || defaults?.providerId || "mistral";
+  const activeProviderId = providerId || defaults?.providerId || (isImageNode ? "huggingface" : "mistral");
   const activeModel = model || defaults?.model || "";
 
   useEffect(() => {
@@ -70,6 +71,7 @@ export function NodeSettingsPopover({
         model={activeModel}
         onProviderChange={onProviderChange}
         onModelChange={onModelChange}
+        endpoint={isImageNode ? "/api/image-providers" : "/api/providers"}
       />
     </div>
   );
