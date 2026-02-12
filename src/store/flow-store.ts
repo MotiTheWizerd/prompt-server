@@ -15,8 +15,10 @@ import type {
   NodeOutput,
 } from "@/lib/engine/types";
 import { executeGraph } from "@/lib/engine/runner";
-import { getDownstreamNodes } from "@/lib/engine/graph";
+import { getDownstreamNodes, getUpstreamNodes } from "@/lib/engine/graph";
 import { eventBus } from "@/lib/event-bus";
+import { toastSuccess, toastError } from "@/lib/toast";
+import { undoManager, type Snapshot } from "@/lib/undo-manager";
 import type { FlowData } from "./types";
 
 export type NodeData = Record<string, unknown>;
@@ -90,6 +92,11 @@ function patchFlow(
   return { ...flows, [flowId]: { ...flow, ...patch } };
 }
 
+/** Extract the undoable snapshot from a flow. */
+function takeSnapshot(flow: FlowData): Snapshot {
+  return { nodes: flow.nodes, edges: flow.edges };
+}
+
 // ---- Initial state (empty — dashboard populates after loading) ----
 
 // ---- Store interface ----
@@ -126,6 +133,10 @@ interface FlowStoreState {
   loadFlowData: (flowData: FlowData) => void;
   markClean: (flowId: string) => void;
 
+  // Undo / Redo
+  undo: () => void;
+  redo: () => void;
+
   // Lightbox
   lightboxImage: string | null;
   openLightbox: (image: string) => void;
@@ -142,12 +153,64 @@ export const useFlowStore = create<FlowStoreState>((set, get) => ({
   openLightbox: (image) => set({ lightboxImage: image }),
   closeLightbox: () => set({ lightboxImage: null }),
 
+  // --- Undo / Redo ---
+
+  undo: () => {
+    const { activeFlowId, flows } = get();
+    const flow = flows[activeFlowId];
+    if (!flow || flow.execution.isRunning) return;
+
+    const restored = undoManager.undo(activeFlowId, takeSnapshot(flow));
+    if (!restored) return;
+
+    set({
+      flows: patchFlow(flows, activeFlowId, {
+        nodes: restored.nodes,
+        edges: restored.edges,
+        isDirty: true,
+      }),
+    });
+    eventBus.emit("flow:dirty", { flowId: activeFlowId });
+  },
+
+  redo: () => {
+    const { activeFlowId, flows } = get();
+    const flow = flows[activeFlowId];
+    if (!flow || flow.execution.isRunning) return;
+
+    const restored = undoManager.redo(activeFlowId, takeSnapshot(flow));
+    if (!restored) return;
+
+    set({
+      flows: patchFlow(flows, activeFlowId, {
+        nodes: restored.nodes,
+        edges: restored.edges,
+        isDirty: true,
+      }),
+    });
+    eventBus.emit("flow:dirty", { flowId: activeFlowId });
+  },
+
   // --- Active flow graph actions ---
 
   onNodesChange: (changes) => {
     const { activeFlowId, flows } = get();
     const flow = flows[activeFlowId];
     if (!flow) return;
+
+    // Capture undo snapshot before mutation
+    if (!flow.execution.isRunning) {
+      const hasRemove = changes.some((c) => c.type === "remove");
+      const hasPosition = changes.some((c) => c.type === "position");
+      const isOnlySelectOrDimension = changes.every(
+        (c) => c.type === "select" || c.type === "dimensions"
+      );
+      if (!isOnlySelectOrDimension) {
+        const before = takeSnapshot(flow);
+        undoManager.pushSnapshot(activeFlowId, before, !hasRemove && hasPosition);
+      }
+    }
+
     set({
       flows: patchFlow(flows, activeFlowId, {
         nodes: applyNodeChanges(changes, flow.nodes),
@@ -161,6 +224,17 @@ export const useFlowStore = create<FlowStoreState>((set, get) => ({
     const { activeFlowId, flows } = get();
     const flow = flows[activeFlowId];
     if (!flow) return;
+
+    // Capture undo snapshot before mutation
+    if (!flow.execution.isRunning) {
+      const hasRemove = changes.some((c) => c.type === "remove");
+      const isOnlySelect = changes.every((c) => c.type === "select");
+      if (!isOnlySelect) {
+        const before = takeSnapshot(flow);
+        undoManager.pushSnapshot(activeFlowId, before, !hasRemove);
+      }
+    }
+
     set({
       flows: patchFlow(flows, activeFlowId, {
         edges: applyEdgeChanges(changes, flow.edges),
@@ -183,6 +257,8 @@ export const useFlowStore = create<FlowStoreState>((set, get) => ({
     const { activeFlowId, flows } = get();
     const flow = flows[activeFlowId];
     if (!flow) return;
+
+    undoManager.pushSnapshot(activeFlowId, takeSnapshot(flow), false);
 
     set({
       flows: patchFlow(flows, activeFlowId, {
@@ -210,6 +286,7 @@ export const useFlowStore = create<FlowStoreState>((set, get) => ({
     const { activeFlowId, flows } = get();
     const flow = flows[activeFlowId];
     if (!flow) return;
+    undoManager.pushSnapshot(activeFlowId, takeSnapshot(flow), false);
     set({
       flows: patchFlow(flows, activeFlowId, {
         nodes: sortNodes([...flow.nodes, node]),
@@ -223,6 +300,9 @@ export const useFlowStore = create<FlowStoreState>((set, get) => ({
     const { activeFlowId, flows } = get();
     const flow = flows[activeFlowId];
     if (!flow) return;
+    if (!flow.execution.isRunning) {
+      undoManager.pushSnapshot(activeFlowId, takeSnapshot(flow), true);
+    }
     set({
       flows: patchFlow(flows, activeFlowId, {
         nodes: flow.nodes.map((n) =>
@@ -238,6 +318,8 @@ export const useFlowStore = create<FlowStoreState>((set, get) => ({
     const { activeFlowId, flows } = get();
     const flow = flows[activeFlowId];
     if (!flow) return;
+
+    undoManager.pushSnapshot(activeFlowId, takeSnapshot(flow), false);
 
     const parent = flow.nodes.find((n) => n.id === parentId);
     const child = flow.nodes.find((n) => n.id === nodeId);
@@ -279,6 +361,8 @@ export const useFlowStore = create<FlowStoreState>((set, get) => ({
     const { activeFlowId, flows } = get();
     const flow = flows[activeFlowId];
     if (!flow) return;
+
+    undoManager.pushSnapshot(activeFlowId, takeSnapshot(flow), false);
 
     const child = flow.nodes.find((n) => n.id === nodeId);
     if (!child || !child.parentId) return;
@@ -343,11 +427,21 @@ export const useFlowStore = create<FlowStoreState>((set, get) => ({
     const flowId = activeFlowId; // capture for closure
     const { nodes, edges, execution } = flow;
 
-    // Compute which nodes are downstream of the trigger (inclusive),
-    // plus any adapter source nodes that feed into the downstream set
+    // Compute which nodes need to execute:
+    // 1. The trigger node and everything downstream
+    // 2. Any upstream ancestors that haven't been executed yet (no cached output)
+    // 3. Adapter source nodes that feed into the execution set
     const downstreamIds = getDownstreamNodes(triggerNodeId, nodes, edges);
 
-    // Include adapter sources: if a downstream node has adapter inputs,
+    // Include unexecuted upstream ancestors so mid-graph play works
+    const upstreamIds = getUpstreamNodes(triggerNodeId, nodes, edges);
+    for (const uid of upstreamIds) {
+      if (!execution.nodeOutputs[uid]) {
+        downstreamIds.add(uid);
+      }
+    }
+
+    // Include adapter sources: if a node in the execution set has adapter inputs,
     // the source nodes must also execute so their outputs are available
     for (const edge of edges) {
       if (
@@ -453,6 +547,7 @@ export const useFlowStore = create<FlowStoreState>((set, get) => ({
         preservedOutputs
       );
       eventBus.emit("execution:completed", { flowId });
+      toastSuccess("Pipeline completed");
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Execution failed";
       const currentFlow = get().flows[flowId];
@@ -487,6 +582,7 @@ export const useFlowStore = create<FlowStoreState>((set, get) => ({
       flows: { ...state.flows, [id]: flow },
       activeFlowId: id,
     }));
+    undoManager.seedInitial(id, takeSnapshot(flow));
     eventBus.emit("flow:created", { flowId: id, name: flowName });
     return id;
   },
@@ -512,6 +608,7 @@ export const useFlowStore = create<FlowStoreState>((set, get) => ({
       flows: newFlows,
       activeFlowId: newActiveId,
     });
+    undoManager.clear(flowId);
     eventBus.emit("flow:closed", { flowId });
   },
 
@@ -561,6 +658,7 @@ export const useFlowStore = create<FlowStoreState>((set, get) => ({
       // Activate the first loaded flow if store was empty
       ...(isFirstFlow && { activeFlowId: cleanedData.id }),
     });
+    undoManager.seedInitial(cleanedData.id, takeSnapshot(cleanedData));
     eventBus.emit("flow:switched", { flowId: cleanedData.id });
   },
 

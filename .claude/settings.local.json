@@ -21,7 +21,10 @@
       "Bash(then rm -rf \"$d\")",
       "Bash(fi)",
       "Bash(git add:*)",
-      "Read(//c/**)"
+      "Read(//c/**)",
+      "Bash(npm i:*)",
+      "Bash(pnpm add:*)",
+      "Bash(find:*)"
     ]
   }
 }

@@ -12,6 +12,8 @@ export function TabBar() {
   const createFlow = useFlowStore((s) => s.createFlow);
   const closeFlow = useFlowStore((s) => s.closeFlow);
   const renameFlow = useFlowStore((s) => s.renameFlow);
+  const undo = useFlowStore((s) => s.undo);
+  const redo = useFlowStore((s) => s.redo);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -53,6 +55,27 @@ export function TabBar() {
   // Keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      // Skip flow-level undo/redo when typing in text inputs (let browser handle natively)
+      const inTextInput =
+        e.target instanceof HTMLTextAreaElement ||
+        e.target instanceof HTMLInputElement;
+
+      // Ctrl+Z: undo
+      if (e.ctrlKey && !e.shiftKey && e.key === "z" && !inTextInput) {
+        e.preventDefault();
+        undo();
+        return;
+      }
+      // Ctrl+Shift+Z / Ctrl+Y: redo
+      if (
+        ((e.ctrlKey && e.shiftKey && (e.key === "z" || e.key === "Z")) ||
+          (e.ctrlKey && e.key === "y")) &&
+        !inTextInput
+      ) {
+        e.preventDefault();
+        redo();
+        return;
+      }
       // Ctrl+T: new tab
       if (e.ctrlKey && e.key === "t") {
         e.preventDefault();
@@ -75,7 +98,7 @@ export function TabBar() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [activeFlowId, flowIds, createFlow, closeFlow, switchFlow]);
+  }, [activeFlowId, flowIds, createFlow, closeFlow, switchFlow, undo, redo]);
 
   return (
     <div className="flex items-center gap-0.5 px-2 py-1 bg-gray-950 border-b border-gray-800 overflow-x-auto">

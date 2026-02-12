@@ -3,26 +3,52 @@
   "name": "Flow 2",
   "nodes": [
     {
-      "id": "initial-prompt-1",
+      "id": "initialPrompt-100",
       "type": "initialPrompt",
       "position": {
-        "x": 126.08695652173913,
-        "y": 229.56521739130434
+        "x": 425.22141706924316,
+        "y": 264.77455716586144
       },
       "data": {
-        "label": "Initial Prompt",
-        "text": ""
+        "label": "initialPrompt",
+        "text": "Hello world"
       },
       "measured": {
         "width": 220,
-        "height": 162
+        "height": 189
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "promptEnhancer-101",
+      "type": "promptEnhancer",
+      "position": {
+        "x": 775.7689210950082,
+        "y": 316.9404186795492
+      },
+      "data": {
+        "label": "promptEnhancer"
+      },
+      "measured": {
+        "width": 242,
+        "height": 179
       },
       "selected": true,
       "dragging": false
     }
   ],
-  "edges": [],
+  "edges": [
+    {
+      "animated": true,
+      "source": "initialPrompt-100",
+      "sourceHandle": "text-out",
+      "target": "promptEnhancer-101",
+      "targetHandle": "text-in",
+      "id": "xy-edge__initialPrompt-100text-out-promptEnhancer-101text-in"
+    }
+  ],
   "providerId": "mistral",
-  "updatedAt": 1770880447273,
-  "createdAt": 1770880447273
+  "updatedAt": 1770882925027,
+  "createdAt": 1770882843076
 }

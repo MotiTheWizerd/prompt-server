@@ -11,10 +11,10 @@ export async function POST(request: NextRequest) {
     }
 
     const styleInstruction = style
-      ? ` Adjust the tone to be ${style}.`
+      ? ` After fixing errors, lightly adjust the tone to be more ${style} — but do NOT expand, rewrite, or add new content. Keep the same meaning and roughly the same length.`
       : "";
 
-    const prompt = `Fix all grammar, spelling, and punctuation errors in the following English text.${styleInstruction} Output ONLY the corrected text, nothing else. Do not add explanations, notes, or formatting. Keep the output under 2500 characters.\n\n${text}`;
+    const prompt = `You are a proofreader. Fix all grammar, spelling, and punctuation errors in the following text.${styleInstruction} Output ONLY the corrected text — no explanations, no notes, no extra formatting. Do NOT expand the text into a story or add new sentences. Preserve the original structure and length.\n\n${text}`;
 
     // === Claude CLI provider ===
     if (providerId === "claude") {

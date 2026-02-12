@@ -18,20 +18,13 @@ export function ImageGeneratorNode({ id }: NodeProps) {
   const outputImage = useFlowStore(
     (s) => s.flows[s.activeFlowId]?.execution.nodeOutputs[id]?.image
   );
-  const isTrigger = useFlowStore((s) => {
-    const flow = s.flows[s.activeFlowId];
-    if (!flow) return false;
-    return !flow.edges.some(
-      (e) => e.target === id && !(e.targetHandle || "").startsWith("adapter-")
-    );
-  });
 
   return (
     <BaseNode
       title="Image Generator"
       icon={<ImageIcon className="w-4 h-4 text-fuchsia-400" />}
       color="ring-fuchsia-500/30"
-      onTrigger={isTrigger ? () => runFromNode(id) : undefined}
+      onTrigger={() => runFromNode(id)}
       status={status}
       errorMessage={errorMessage}
       outputText={outputText}

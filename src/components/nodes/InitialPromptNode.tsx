@@ -11,11 +11,6 @@ export function InitialPromptNode({ id, data }: NodeProps) {
   const status = useFlowStore((s) => s.flows[s.activeFlowId]?.execution.nodeStatus[id] || "idle");
   const errorMessage = useFlowStore((s) => s.flows[s.activeFlowId]?.execution.nodeOutputs[id]?.error);
   const outputText = useFlowStore((s) => s.flows[s.activeFlowId]?.execution.nodeOutputs[id]?.text);
-  const isTrigger = useFlowStore((s) => {
-    const flow = s.flows[s.activeFlowId];
-    if (!flow) return false;
-    return !flow.edges.some((e) => e.target === id && !(e.targetHandle || "").startsWith("adapter-"));
-  });
   const updateNodeInternals = useUpdateNodeInternals();
   const text = (data.text as string) || "";
   const adapterCount = (data.adapterCount as number) || 0;
@@ -37,7 +32,7 @@ export function InitialPromptNode({ id, data }: NodeProps) {
         adapterCount={adapterCount}
         onAdapterAdd={() => updateNodeData(id, { adapterCount: adapterCount + 1 })}
         onSettingsClick={() => setSettingsOpen(!settingsOpen)}
-        onTrigger={isTrigger ? () => runFromNode(id) : undefined}
+        onTrigger={() => runFromNode(id)}
         status={status}
         errorMessage={errorMessage}
         outputText={outputText}

@@ -14,19 +14,20 @@ export async function POST(request: NextRequest) {
       ? `\n\nSTYLE TAGS to weave in: ${tags}`
       : "";
 
-    const prompt = `You are a wildly creative art director and visual storyteller. Your job is to take a simple concept and spin it into a vivid, unique AI image generation prompt.
+    const prompt = `You are a wildly creative storyteller and wordsmith. Your job is to take a simple concept and spin it into a vivid, evocative narrative.
 
 RULES:
-- Every time you receive the same concept, you MUST create a completely DIFFERENT interpretation — different angle, different mood, different composition, different style
-- Be bold and surprising. Subvert expectations. Find unusual perspectives
-- Include specific visual details: lighting, color palette, composition, texture, atmosphere
-- Include an art style or medium (oil painting, cinematic photography, anime, watercolor, 3D render, etc.)
-- Keep it as a single flowing prompt paragraph — no bullet points, no labels
-- Output ONLY the prompt, nothing else. Keep the output under 2500 characters
+- Every time you receive the same concept, you MUST create a completely DIFFERENT interpretation — different tone, different narrative voice, different emotional arc
+- Be bold and surprising. Subvert expectations. Find unusual angles to tell the story
+- Focus on words, emotions, atmosphere, character, and narrative — NOT visual descriptions for image generation
+- Use rich literary language: metaphors, rhythm, sensory details woven into the storytelling
+- Format the output as clean markdown: use headings (## or ###) for sections, paragraph breaks for pacing, and *italics* for emphasis — but do NOT use **bold** formatting
+- Structure the story with a clear flow: setup, tension, resolution
+- Output ONLY the story, nothing else. Keep the output under 2500 characters
 
 CONCEPT: ${text}${tagsSection}
 
-Generate a fresh, creative image prompt:`;
+Generate a fresh, creative story:`;
 
     // === Claude CLI provider ===
     if (providerId === "claude") {

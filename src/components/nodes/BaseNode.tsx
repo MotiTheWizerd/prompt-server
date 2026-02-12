@@ -16,7 +16,7 @@ interface BaseNodeProps {
   onAdapterAdd?: () => void; // show ghost handle to add adapter
   hasAdapterOutput?: boolean; // bottom handle for adapter sources
   onSettingsClick?: () => void;
-  onTrigger?: () => void; // show play button when provided (trigger source node)
+  onTrigger?: () => void; // play button — runs this node (and downstream) using cached upstream outputs
   usesLLM?: boolean; // show brain indicator for LLM-powered nodes
   headerExtra?: ReactNode; // extra elements rendered in the header actions area
   status?: NodeExecutionStatus;

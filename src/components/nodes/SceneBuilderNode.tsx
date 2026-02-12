@@ -48,12 +48,6 @@ export function SceneBuilderNode({ id, data }: NodeProps) {
   const status = useFlowStore((s) => s.flows[s.activeFlowId]?.execution.nodeStatus[id] || "idle");
   const errorMessage = useFlowStore((s) => s.flows[s.activeFlowId]?.execution.nodeOutputs[id]?.error);
   const outputText = useFlowStore((s) => s.flows[s.activeFlowId]?.execution.nodeOutputs[id]?.text);
-  const isTrigger = useFlowStore((s) => {
-    const flow = s.flows[s.activeFlowId];
-    if (!flow) return false;
-    return !flow.edges.some((e) => e.target === id && !(e.targetHandle || "").startsWith("adapter-"));
-  });
-
   const set = (key: string, value: string) => updateNodeData(id, { [key]: value });
 
   return (
@@ -63,7 +57,7 @@ export function SceneBuilderNode({ id, data }: NodeProps) {
       color="ring-sky-500/30"
       hasInput={false}
       hasOutput={true}
-      onTrigger={isTrigger ? () => runFromNode(id) : undefined}
+      onTrigger={() => runFromNode(id)}
       status={status}
       errorMessage={errorMessage}
       outputText={outputText}

@@ -9,11 +9,6 @@ export function GrammarFixNode({ id, data }: NodeProps) {
   const status = useFlowStore((s) => s.flows[s.activeFlowId]?.execution.nodeStatus[id] || "idle");
   const errorMessage = useFlowStore((s) => s.flows[s.activeFlowId]?.execution.nodeOutputs[id]?.error);
   const outputText = useFlowStore((s) => s.flows[s.activeFlowId]?.execution.nodeOutputs[id]?.text);
-  const isTrigger = useFlowStore((s) => {
-    const flow = s.flows[s.activeFlowId];
-    if (!flow) return false;
-    return !flow.edges.some((e) => e.target === id && !(e.targetHandle || "").startsWith("adapter-"));
-  });
   const style = (data.style as string) || "";
 
   return (
@@ -21,7 +16,7 @@ export function GrammarFixNode({ id, data }: NodeProps) {
       title="Grammar Fix"
       icon={<SpellCheck className="w-4 h-4 text-green-400" />}
       color="ring-green-500/30"
-      onTrigger={isTrigger ? () => runFromNode(id) : undefined}
+      onTrigger={() => runFromNode(id)}
       usesLLM
       status={status}
       errorMessage={errorMessage}

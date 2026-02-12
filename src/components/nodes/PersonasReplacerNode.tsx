@@ -8,6 +8,7 @@ import { useFlowStore } from "@/store/flow-store";
 
 export function PersonasReplacerNode({ id, data }: NodeProps) {
   const updateNodeData = useFlowStore((s) => s.updateNodeData);
+  const runFromNode = useFlowStore((s) => s.runFromNode);
   const status = useFlowStore((s) => s.flows[s.activeFlowId]?.execution.nodeStatus[id] || "idle");
   const errorMessage = useFlowStore((s) => s.flows[s.activeFlowId]?.execution.nodeOutputs[id]?.error);
   const outputText = useFlowStore((s) => s.flows[s.activeFlowId]?.execution.nodeOutputs[id]?.text);
@@ -30,6 +31,7 @@ export function PersonasReplacerNode({ id, data }: NodeProps) {
         adapterCount={adapterCount}
         onAdapterAdd={() => updateNodeData(id, { adapterCount: adapterCount + 1 })}
         onSettingsClick={() => setSettingsOpen(!settingsOpen)}
+        onTrigger={() => runFromNode(id)}
         usesLLM
         status={status}
         errorMessage={errorMessage}

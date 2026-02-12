@@ -5,6 +5,7 @@ import {
   ReactFlow,
   Background,
   Controls,
+  ControlButton,
   MiniMap,
   BackgroundVariant,
   useReactFlow,
@@ -33,6 +34,7 @@ import {
   Shrink,
   ImageIcon,
   UserRoundPen,
+  HelpCircle,
 } from "lucide-react";
 import { useFlowStore } from "@/store/flow-store";
 import { nodeTypes } from "@/components/nodes";
@@ -86,6 +88,17 @@ const componentGroups: SidebarGroup[] = [
   },
 ];
 
+function Shortcut({ keys, desc }: { keys: string; desc: string }) {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <kbd className="px-1.5 py-0.5 rounded bg-gray-800 border border-gray-700 text-[10px] text-gray-400 font-mono shrink-0">
+        {keys}
+      </kbd>
+      <span className="text-gray-400 text-[11px] text-right">{desc}</span>
+    </div>
+  );
+}
+
 let nodeId = 100;
 
 // Stable defaults to avoid infinite re-render when store is empty
@@ -137,6 +150,9 @@ function DashboardInner() {
     },
     [onEdgesChange]
   );
+
+  // Help popup state
+  const [showHelp, setShowHelp] = useState(false);
 
   // Sidebar collapse state
   const [assetsOpen, setAssetsOpen] = useState(true);
@@ -511,7 +527,81 @@ function DashboardInner() {
             />
             <Controls
               className="!bg-gray-900 !border-gray-700 !rounded-lg !shadow-xl [&>button]:!bg-gray-800 [&>button]:!border-gray-700 [&>button]:!text-gray-400 [&>button:hover]:!bg-gray-700"
-            />
+            >
+              <ControlButton
+                onClick={() => setShowHelp((v) => !v)}
+                title="Canvas Help"
+                className="!border-t !border-gray-700 !order-[-1]"
+              >
+                <HelpCircle className="!w-4 !h-4 !fill-none" />
+              </ControlButton>
+            </Controls>
+
+            {/* Help popup */}
+            {showHelp && (
+              <div className="absolute bottom-4 left-16 z-50">
+                <div className="w-[540px] bg-gray-900 border border-gray-700 rounded-xl shadow-2xl p-4 text-xs text-gray-300">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-semibold text-white">Canvas Controls</h3>
+                    <button
+                      onClick={() => setShowHelp(false)}
+                      className="p-0.5 hover:text-white transition-colors"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+                    <section>
+                      <h4 className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Navigation</h4>
+                      <div className="space-y-1">
+                        <Shortcut keys="Scroll" desc="Zoom in / out" />
+                        <Shortcut keys="Click + Drag" desc="Pan canvas" />
+                        <Shortcut keys="Fit View" desc="Button in toolbar (left)" />
+                      </div>
+                    </section>
+
+                    <section>
+                      <h4 className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Selection</h4>
+                      <div className="space-y-1">
+                        <Shortcut keys="Click" desc="Select a node" />
+                        <Shortcut keys="Shift + Click" desc="Add / remove from selection" />
+                        <Shortcut keys="Shift + Drag" desc="Box select multiple nodes" />
+                        <Shortcut keys="Backspace / Delete" desc="Remove selected nodes" />
+                      </div>
+                    </section>
+
+                    <section>
+                      <h4 className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Connections</h4>
+                      <div className="space-y-1">
+                        <Shortcut keys="Drag handle" desc="Create a connection" />
+                        <Shortcut keys="Double-click edge" desc="Remove a connection" />
+                      </div>
+                    </section>
+
+                    <section>
+                      <h4 className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Keyboard Shortcuts</h4>
+                      <div className="space-y-1">
+                        <Shortcut keys="Ctrl + Z" desc="Undo" />
+                        <Shortcut keys="Ctrl + Shift + Z" desc="Redo" />
+                        <Shortcut keys="Ctrl + T" desc="New flow tab" />
+                        <Shortcut keys="Ctrl + W" desc="Close current tab" />
+                        <Shortcut keys="Ctrl + Tab" desc="Next / previous tab" />
+                      </div>
+                    </section>
+
+                    <section className="col-span-2">
+                      <h4 className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Nodes</h4>
+                      <div className="grid grid-cols-2 gap-x-6 gap-y-1">
+                        <Shortcut keys="Drag from sidebar" desc="Add a node to canvas" />
+                        <Shortcut keys="Play button ▶" desc="Run node + downstream" />
+                        <Shortcut keys="+ handle" desc="Add adapter input (personas)" />
+                      </div>
+                    </section>
+                  </div>
+                </div>
+              </div>
+            )}
             <MiniMap
               nodeColor={() => "#6366f1"}
               maskColor="rgba(0,0,0,0.7)"
