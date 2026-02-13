@@ -1,6 +1,6 @@
-# Prompt Creator — Detailed Guide
+# AgenticIDE — Detailed Guide
 
-A visual, node-based AI prompt pipeline builder. Design multi-step text and image generation workflows by connecting nodes on a canvas — each node performs one AI operation (enhance, translate, describe, generate image, etc.) and passes its output downstream. The execution engine topologically sorts the graph and runs nodes in order, with real-time status updates and per-edge animation.
+A visual development environment for composing, testing, and deploying AI agent pipelines. Build multi-step text and image generation workflows by connecting nodes on a canvas, create agentic automations, and generate complex AI art — all from a single platform.
 
 ---
 
@@ -15,11 +15,13 @@ A visual, node-based AI prompt pipeline builder. Design multi-step text and imag
 | Styling            | Tailwind CSS 4, tw-animate-css                               |
 | UI Components      | Radix UI, cmdk (command palette), Lucide icons                |
 | Animation          | Framer Motion 12                                             |
+| HTTP Client        | Axios (preconfigured instance with auth interceptors)         |
 | Notifications      | Sonner (toast)                                                |
 | AI SDK             | OpenAI SDK 6 (compatible endpoints), Claude Agent SDK         |
 | AI Text Providers  | Mistral AI, GLM (Zhipu AI), OpenRouter, HuggingFace (Qwen)   |
-| AI Image Providers | HuggingFace (FLUX.1-schnell, FLUX.1-dev, GLM-Image 16B via fal-ai) |
-| Persistence        | File-based (server-side JSON files, auto-save via event bus)  |
+| AI Image Providers | HuggingFace (FLUX.1-schnell, FLUX.1-dev), GLM-Image (Z.AI native) |
+| Backend API        | Separate FastAPI backend at `http://localhost:8000/api/v1`    |
+| Auth               | JWT (access + refresh tokens) via backend auth endpoints      |
 
 ---
 
@@ -28,7 +30,7 @@ A visual, node-based AI prompt pipeline builder. Design multi-step text and imag
 ### 1. Install dependencies
 
 ```bash
-npm install
+pnpm install
 ```
 
 ### 2. Configure environment variables
@@ -36,30 +38,81 @@ npm install
 Create a `.env.local` file in the project root:
 
 ```bash
+# Backend API URL (optional — defaults to http://localhost:8000/api/v1)
+NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
+
 # Text providers (at least one required)
 MISTRAL_API_KEY=your_mistral_api_key
 GLM_API_KEY=your_glm_api_key
 OPENROUTER_API_KEY=your_openrouter_api_key
 HF_API_KEY=your_huggingface_api_key
 
-# HF_API_KEY is also used for image generation (FLUX models, GLM-Image via fal-ai router)
+# HF_API_KEY is also used for image generation (FLUX models)
+# GLM_API_KEY is also used for GLM-Image generation (Z.AI native API)
 ```
 
 | Provider             | Get a key at                             | Used for                     |
 | -------------------- | ---------------------------------------- | ---------------------------- |
 | Mistral AI           | https://console.mistral.ai/              | Text (default for most nodes)|
-| GLM (Zhipu AI)       | https://open.bigmodel.cn/                | Text + Vision                |
+| GLM (Z.AI)           | https://open.bigmodel.cn/                | Text + Vision + Image        |
 | OpenRouter           | https://openrouter.ai/                   | Text (free tier available)   |
-| HuggingFace          | https://huggingface.co/settings/tokens   | Text (Qwen) + Image (FLUX, GLM-Image) |
+| HuggingFace          | https://huggingface.co/settings/tokens   | Text (Qwen) + Image (FLUX)   |
 | Claude CLI           | Local Claude CLI install                 | Vision (imageDescriber, personasReplacer) |
 
 ### 3. Run the dev server
 
 ```bash
-npm run dev
+pnpm dev
 ```
 
-Open http://localhost:3000 → redirects to `/dashboard`
+Open http://localhost:3000 → Landing page → Login → `/home`
+
+---
+
+## Routing & Layout Architecture
+
+The app uses Next.js route groups to separate public and authenticated areas:
+
+```
+src/app/
+├── layout.tsx                    # Root layout (Geist font, metadata, Sonner toasts)
+├── globals.css                   # Tailwind theme, dark mode
+├── (public)/                     # Public route group
+│   ├── layout.tsx                # Shared public layout (dark bg + Navbar)
+│   ├── page.tsx                  # Landing page (/)
+│   └── login/page.tsx            # Login page (/login)
+├── (authenticated)/              # Authenticated route group
+│   ├── layout.tsx                # Auth guard + MainSidebar + header + UserAvatar
+│   └── home/page.tsx             # Home page (/home)
+├── image-genai/                  # Image GenAI (own full-screen layout)
+│   ├── layout.tsx                # Image GenAI layout (AppSidebar, own auth guard)
+│   ├── page.tsx                  # Main canvas (React Flow + toolbar)
+│   ├── characters/page.tsx       # Character management
+│   └── settings/page.tsx         # Settings (placeholder)
+├── prototype/page.tsx            # Prototype/legacy page
+└── api/                          # API routes (see below)
+```
+
+### Route Groups
+
+| Group | Layout | Pages | Purpose |
+| ----- | ------ | ----- | ------- |
+| `(public)` | Navbar | `/`, `/login` | Landing page + login |
+| `(authenticated)` | Auth guard + MainSidebar + header + UserAvatar | `/home`, `/agents`, `/settings` | Main app shell |
+| `image-genai/` | Own full-screen layout (AppSidebar) | `/image-genai`, `/image-genai/characters`, `/image-genai/settings` | Node editor (standalone) |
+
+### Authentication Flow
+
+1. User visits `/` → sees landing page
+2. Clicks "Get Started" or "Log In" → navigates to `/login`
+3. Submits email + password → `POST /api/v1/auth/login` → receives JWT tokens + user details
+4. Tokens stored in localStorage (`access_token` + `refresh_token`)
+5. User details stored in Zustand user store + localStorage (`user_details`)
+6. Redirected to `/home`
+7. All API calls auto-attach `Bearer` token via axios interceptor
+8. On 401 → auto-refresh via `POST /api/v1/auth/refresh` → retry original request
+9. If refresh fails → clear tokens + clear user → redirect to `/login`
+10. Logout → clear tokens + clear user → redirect to `/login`
 
 ---
 
@@ -93,6 +146,7 @@ Open http://localhost:3000 → redirects to `/dashboard`
 ┌─────────────────────────────────────────────────────┐
 │  Event Bus (event-bus.ts)                           │
 │  flow:dirty → Auto-Save (auto-save.ts)              │
+│  editor:status → Editor disabled/active state       │
 │  execution:node-status → UI updates                 │
 │  flow:created/closed/switched → Tab management      │
 └─────────────────────────────────────────────────────┘
@@ -110,14 +164,73 @@ Open http://localhost:3000 → redirects to `/dashboard`
 
 | System           | File(s)                         | Purpose                                                          |
 | ---------------- | ------------------------------- | ---------------------------------------------------------------- |
+| Branding         | `src/lib/constants.ts`          | Centralized product name, tagline, description                   |
+| Auth             | `src/lib/auth.ts`               | Token storage helpers (get, set, clear, isAuthenticated)         |
+| API Client       | `src/lib/api.ts`                | Axios instance with Bearer token + auto-refresh interceptors     |
+| User Store       | `src/store/user-store.ts`       | Zustand store for current user details (persisted to localStorage) |
 | Zustand Store    | `src/store/flow-store.ts`       | Multi-flow state: nodes, edges, execution status per flow        |
 | Execution Engine | `src/lib/engine/`               | Graph sorting, sequential node execution, executor registry      |
 | Model Defaults   | `src/lib/model-defaults.ts`     | Per-node-type default provider + model assignments               |
+| Editor Manager   | `src/lib/editor-manager.ts`     | Zustand micro-store: editor status, project management, init lifecycle |
 | Event Bus        | `src/lib/event-bus.ts`          | Typed event emitter decoupling UI, persistence, and execution    |
 | Auto-Save        | `src/lib/auto-save.ts`          | Debounced file persistence triggered by `flow:dirty` events      |
 | Undo Manager     | `src/lib/undo-manager.ts`       | Per-flow undo/redo with debounced snapshots and batch grouping   |
 | Text Providers   | `src/lib/providers.ts`          | OpenAI-compatible client factory for all text AI providers       |
-| Image Providers  | `src/lib/image-providers.ts`    | Universal image generation registry (HuggingFace FLUX + GLM-Image) |
+| Image Providers  | `src/lib/image-providers.ts`    | Universal image generation registry (HuggingFace FLUX, GLM-Image Z.AI) |
+
+---
+
+## Landing Page
+
+The landing page at `/` is a clean, minimal marketing page built with Framer Motion scroll animations:
+
+| Section | Component | Description |
+| ------- | --------- | ----------- |
+| Navbar | `src/components/landing/navbar.tsx` | Fixed top nav with scroll blur effect, mobile hamburger menu |
+| Hero | `src/components/landing/hero.tsx` | Product name, tagline, CTAs with staggered fade-in |
+| Features | `src/components/landing/features.tsx` | 6-card grid (uses reusable `FeatureCard` component) |
+| How It Works | `src/components/landing/how-it-works.tsx` | 3-step pipeline walkthrough |
+| Use Cases | `src/components/landing/use-cases.tsx` | 4 use case cards with accent borders |
+| CTA + Footer | `src/components/landing/cta-footer.tsx` | Final call-to-action + minimal footer |
+
+### Reusable Landing Components
+
+| Component | File | Purpose |
+| --------- | ---- | ------- |
+| `SectionWrapper` | `src/components/landing/section-wrapper.tsx` | Scroll-animated section container (whileInView fade-up) |
+| `GradientText` | `src/components/landing/gradient-text.tsx` | Blue-to-purple gradient text (configurable tag: h1/h2/span) |
+| `FeatureCard` | `src/components/landing/feature-card.tsx` | Animated feature card with icon, title, description |
+
+---
+
+## Sidebar Navigation
+
+### MainSidebar (Authenticated Area)
+
+**File:** `src/components/main-sidebar.tsx`
+
+Used by the `(authenticated)` layout for `/home` and inner app pages.
+
+| Icon | Label | Route | Color |
+| ---- | ----- | ----- | ----- |
+| Home | Home | `/home` | blue |
+| ImageIcon | Image GenAI | `/image-genai` | fuchsia |
+| Bot | Agents Automations | `/agents` | emerald |
+| Settings | Settings | `/settings` | gray |
+| LogOut | Sign Out | → `/login` | red (hover) |
+
+### AppSidebar (Image GenAI)
+
+**File:** `src/components/app-sidebar.tsx`
+
+Used by the image-genai layout for the node editor.
+
+| Icon | Label | Route | Color |
+| ---- | ----- | ----- | ----- |
+| Workflow | Editor | `/image-genai` | blue |
+| UserRound | Characters | `/image-genai/characters` | amber |
+| Settings | Settings | `/image-genai/settings` | gray |
+| LogOut | Sign Out | → `/login` | red (hover) |
 
 ---
 
@@ -154,7 +267,7 @@ Nodes are the building blocks of a flow. Each node has typed input/output handle
 | Node               | Description                                                                                   |
 | ------------------ | --------------------------------------------------------------------------------------------- |
 | **Text Output**    | Terminal sink — displays the final text result. Copy to clipboard support.                    |
-| **Image Generator**| Takes upstream text prompt and generates an image via HuggingFace (FLUX, GLM-Image). Per-node model selection via settings. |
+| **Image Generator**| Takes upstream text prompt and generates an image via HuggingFace (FLUX) or GLM-Image (Z.AI). Per-node model selection via settings. |
 
 ### Utility Nodes
 
@@ -193,25 +306,26 @@ All text providers use OpenAI-compatible APIs via the OpenAI SDK.
 | Provider    | Text Model                  | Vision Model         | Base URL                                 |
 | ----------- | --------------------------- | -------------------- | ---------------------------------------- |
 | Mistral     | ministral-14b-2512          | pixtral-12b-2409     | `https://api.mistral.ai/v1`             |
-| GLM (Zhipu) | glm-4.7-flash              | glm-4.6v             | `https://open.bigmodel.cn/api/paas/v4`  |
+| GLM (Z.AI)  | glm-4.7-flash              | glm-4.6v             | `https://api.z.ai/api/coding/paas/v4`  |
 | OpenRouter  | dolphin-mistral-24b (free)  | —                    | `https://openrouter.ai/api/v1`          |
 | HuggingFace | Qwen2.5-72B-Instruct       | Qwen2.5-VL-7B       | `https://router.huggingface.co/v1`      |
 | Claude CLI  | (local CLI)                 | (local CLI)          | Local process                            |
 
 ### Image Providers
 
-| Provider    | Models                                                          | HF Router Provider |
-| ----------- | --------------------------------------------------------------- | ------------------ |
-| HuggingFace | FLUX.1-schnell (fast), FLUX.1-dev (quality), GLM-Image 16B     | hf-inference / fal-ai |
+| Provider    | Models                                          | API Endpoint                                        |
+| ----------- | ----------------------------------------------- | --------------------------------------------------- |
+| HuggingFace | FLUX.1-schnell (fast), FLUX.1-dev (quality)     | `https://router.huggingface.co/hf-inference/models/` |
+| GLM-Image   | GLM-Image (Z.AI native)                         | `https://api.z.ai/api/paas/v4/images/generations`   |
 
-> **Note:** Different image models may be served by different HuggingFace router providers. FLUX models use `hf-inference`, while GLM-Image routes through `fal-ai`. This is handled automatically via the `MODEL_ROUTER_PROVIDER` map in `image-providers.ts`.
+> **Note:** GLM-Image uses the Z.AI native API directly (not routed through HuggingFace). It returns an image URL which is downloaded and converted to base64 by the provider. Uses `GLM_API_KEY`.
 
 ### Per-Node Model Defaults
 
 Each node type has a default provider + model assignment. Resolution priority:
 
 ```
-nodeData override  →  node-type default  →  global provider fallback
+nodeData override  →  node-type default
 ```
 
 | Node Type        | Default Provider | Default Model              | Rationale                      |
@@ -233,10 +347,16 @@ nodeData override  →  node-type default  →  global provider fallback
 src/
 ├── app/
 │   ├── layout.tsx                          # Root layout (Geist font, Sonner toasts)
-│   ├── page.tsx                            # Root page (redirects to /dashboard)
 │   ├── globals.css                         # Tailwind theme, dark mode
-│   ├── dashboard/
-│   │   ├── layout.tsx                      # Dashboard layout (sidebar)
+│   ├── (public)/                           # Public route group
+│   │   ├── layout.tsx                      # Shared public layout (Navbar)
+│   │   ├── page.tsx                        # Landing page (/)
+│   │   └── login/page.tsx                  # Login page (/login)
+│   ├── (authenticated)/                    # Authenticated route group
+│   │   ├── layout.tsx                      # Auth guard + MainSidebar + header + UserAvatar
+│   │   └── home/page.tsx                   # Home page (/home)
+│   ├── image-genai/
+│   │   ├── layout.tsx                      # Image GenAI layout (AppSidebar, own auth guard)
 │   │   ├── page.tsx                        # Main canvas (React Flow + sidebar + toolbar)
 │   │   ├── characters/page.tsx             # Character management page
 │   │   └── settings/page.tsx               # Settings page
@@ -260,6 +380,16 @@ src/
 │       ├── characters/[id]/image/route.ts  # GET — character avatar image
 │       └── claude-code/test-claude/route.ts # GET — Claude CLI connectivity test
 ├── components/
+│   ├── landing/
+│   │   ├── navbar.tsx                      # Landing page fixed navbar
+│   │   ├── hero.tsx                        # Hero section
+│   │   ├── features.tsx                    # Features grid
+│   │   ├── how-it-works.tsx                # How it works steps
+│   │   ├── use-cases.tsx                   # Use case cards
+│   │   ├── cta-footer.tsx                  # CTA + footer
+│   │   ├── section-wrapper.tsx             # Reusable scroll-animated section
+│   │   ├── gradient-text.tsx               # Reusable gradient text component
+│   │   └── feature-card.tsx                # Reusable animated feature card
 │   ├── nodes/
 │   │   ├── index.ts                        # Node type registry (nodeTypes map)
 │   │   ├── BaseNode.tsx                    # Shared node shell (header, handles, status ring)
@@ -280,21 +410,29 @@ src/
 │   ├── shared/
 │   │   ├── ImageUpload.tsx                 # Reusable image upload (drag/paste/click)
 │   │   ├── LanguageSelect.tsx              # Language dropdown
-│   │   ├── ProviderSelect.tsx              # AI provider selector (global)
-│   │   ├── ProviderModelSelect.tsx        # Per-node provider + model combobox (shadcn Popover + Command)
+│   │   ├── GeneralDropdown.tsx             # Reusable dropdown (value/label options, Radix popover)
+│   │   ├── Modal.tsx                       # Reusable modal with blurry backdrop + fade animation
+│   │   ├── ProviderSelect.tsx              # AI provider selector (characters, prototype pages)
+│   │   ├── UserAvatar.tsx                  # Reusable user avatar (initials, gradient circle)
 │   │   └── AppToaster.tsx                  # Sonner toaster (dark theme, bottom-right)
 │   ├── ui/                                 # Radix UI primitives (button, dialog, popover, command)
+│   ├── main-sidebar.tsx                    # Main app sidebar (Home, Image GenAI, Agents, Settings)
+│   ├── app-sidebar.tsx                     # Image GenAI sidebar (Editor, Characters, Settings)
 │   ├── TabBar.tsx                          # Multi-flow tab bar
-│   ├── ImageLightbox.tsx                   # Full-screen image viewer
-│   └── app-sidebar.tsx                     # Dashboard sidebar
+│   └── ImageLightbox.tsx                   # Full-screen image viewer
 ├── store/
 │   ├── flow-store.ts                       # Zustand store (multi-flow state + actions)
+│   ├── user-store.ts                       # Zustand store (current user details, localStorage-persisted)
 │   └── types.ts                            # FlowData, TabState interfaces
 └── lib/
+    ├── constants.ts                        # Branding constants (BRAND.name, tagline, description)
+    ├── auth.ts                             # Token helpers (get/set/clear tokens, isAuthenticated)
+    ├── api.ts                              # Axios instance (baseURL, Bearer interceptor, auto-refresh)
     ├── providers.ts                        # Text AI provider config + OpenAI client factory
     ├── image-providers.ts                  # Image generation provider registry
     ├── model-defaults.ts                   # Per-node-type model assignments
-    ├── event-bus.ts                        # Typed EventEmitter (flow + execution events)
+    ├── editor-manager.ts                   # Editor lifecycle manager (Zustand micro-store)
+    ├── event-bus.ts                        # Typed EventEmitter (flow + execution + editor events)
     ├── auto-save.ts                        # Debounced file persistence via event bus
     ├── undo-manager.ts                     # Per-flow undo/redo history (snapshot stacks + debounce)
     ├── toast.ts                            # Sonner toast helpers (success/error/info/warning)
@@ -384,6 +522,28 @@ users/test/flows/{flowId}/flow.json
 
 ---
 
+## Backend Auth API
+
+The frontend communicates with a separate FastAPI backend for authentication.
+
+| Method | Path | Description |
+| ------ | ---- | ----------- |
+| POST | `/api/v1/auth/login` | Email + password → access + refresh tokens |
+| POST | `/api/v1/auth/refresh` | Refresh token → new token pair |
+
+Access tokens expire in 30 minutes, refresh tokens in 7 days. The axios interceptor in `api.ts` handles automatic token refresh transparently.
+
+---
+
+## Backend Projects API
+
+| Method | Path | Body | Description |
+| ------ | ---- | ---- | ----------- |
+| POST | `/api/v1/projects` | `{ project_name, user_id }` | Create a new project |
+| POST | `/api/v1/projects/select` | `{ user_id }` | List all projects for a user |
+
+---
+
 ## API Routes — AI Processing
 
 All AI processing routes accept a `providerId` and optional `model` field. They resolve the AI provider, call the external API, and return the result.
@@ -415,6 +575,7 @@ The typed event bus (`src/lib/event-bus.ts`) decouples the UI, persistence, and 
 | `flow:renamed`           | `{ flowId, name }`                       | —                        |
 | `flow:dirty`             | `{ flowId }`                             | Auto-save (debounced)    |
 | `flow:saved`             | `{ flowId }`                             | —                        |
+| `editor:status`          | `{ status: "disabled" \| "active" }`     | Editor Manager           |
 | `execution:started`      | `{ flowId }`                             | UI                       |
 | `execution:node-status`  | `{ flowId, nodeId, status, output? }`    | UI (node status rings)   |
 | `execution:completed`    | `{ flowId }`                             | UI                       |
@@ -424,6 +585,7 @@ The typed event bus (`src/lib/event-bus.ts`) decouples the UI, persistence, and 
 
 ## UI Features
 
+- **Landing Page** — Modern marketing page with Framer Motion scroll animations, Navbar, Hero, Features, How It Works, Use Cases, CTA
 - **Node Canvas** — React Flow canvas with drag-and-drop node placement from a categorized sidebar
 - **Multi-Flow Tabs** — Create, switch, rename, and close multiple flows as tabs
 - **Undo/Redo** — Ctrl+Z / Ctrl+Shift+Z with per-flow history, debounced drag/typing, batch grouping for compound actions (node delete + edge cleanup = one undo step)
@@ -432,11 +594,13 @@ The typed event bus (`src/lib/event-bus.ts`) decouples the UI, persistence, and 
 - **Status Indicators** — Each node shows its execution state (pending → running spinner → green complete / red error)
 - **Toast Notifications** — Sonner-based themed toasts for pipeline completion, errors, and info
 - **Image Upload** — Drag & drop, Ctrl+V paste from clipboard, or click to pick files
-- **Provider Selection** — Global provider selector in the toolbar; per-node provider + model override via settings popover on all nodes (shadcn combobox dropdowns). Image Generator nodes show image providers; text nodes show text providers.
+- **Provider Selection** — Per-node provider + model override via settings popover on all nodes (GeneralDropdown combobox). Image Generator nodes show image providers; text nodes show text providers.
+- **Project Selector** — Dropdown in the editor header to select/create projects (backed by FastAPI `POST /api/v1/projects` and `POST /api/v1/projects/select`)
 - **LLM Indicator** — Nodes that use AI models display a brain icon in the header
 - **Image Lightbox** — Click generated images for full-screen preview
 - **Copy to Clipboard** — TextOutput nodes have a one-click copy button
-- **Character Management** — Create and manage consistent character personas at `/dashboard/characters`
+- **User Avatar** — Gradient initials avatar in the authenticated header, pulled from Zustand user store
+- **Character Management** — Create and manage consistent character personas at `/image-genai/characters`
 - **Multi-Select** — Shift+Click to add/remove nodes from selection; Shift+Drag for box (marquee) select
 - **MiniMap + Controls** — React Flow built-in minimap, zoom controls, and a help button (?) with an interactive shortcut reference popup
 - **Help Panel** — Click the ? button in the bottom-left controls to view all canvas controls, selection, connection, keyboard shortcuts, and node interaction instructions in a two-column popup
@@ -463,16 +627,16 @@ The typed event bus (`src/lib/event-bus.ts`) decouples the UI, persistence, and 
 
 ```bash
 # Full pipeline (legacy two-step: describe + replace)
-npm run pipeline -- -p persona.jpg -t target.jpg [-r ref1.jpg] [-x "extra text"]
+pnpm pipeline -- -p persona.jpg -t target.jpg [-r ref1.jpg] [-x "extra text"]
 
 # Test visual analysis on a single image
-npm run test:visual -- ./image.jpg
+pnpm test:visual -- ./image.jpg
 
 # Test replace step with a description
-npm run test:replace -- -t target.jpg -d "persona description text"
+pnpm test:replace -- -t target.jpg -d "persona description text"
 
 # Test Claude Code CLI connectivity
-npm run test:claude
+pnpm test:claude
 ```
 
 ---

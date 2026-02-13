@@ -15,7 +15,7 @@
       },
       "measured": {
         "width": 220,
-        "height": 189
+        "height": 162
       },
       "selected": false,
       "dragging": false
@@ -31,10 +31,30 @@
         "label": "promptEnhancer"
       },
       "measured": {
-        "width": 242,
-        "height": 179
+        "width": 230,
+        "height": 152
       },
-      "selected": true,
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "consistentCharacter-121",
+      "type": "consistentCharacter",
+      "position": {
+        "x": 3.122670304546709,
+        "y": -845.0656396387491
+      },
+      "data": {
+        "characterId": "f48e0550-18a5-46b8-948b-04d8dd737faf",
+        "characterName": "Viki",
+        "characterDescription": "**Visual Description — Physical Appearance Only**\n\n**Hair:** Platinum blonde to white-blonde, medium length reaching just past the shoulders. The texture is wavy with loose, tousled curls and a slightly windswept, effortless quality. The hair is loosely pulled back, with soft face-framing pieces falling naturally around the temples and cheekbones.\n\n**Skin:** Fair, porcelain complexion with warm undertones visible from the ambient firelight. The skin appears smooth and luminous with a healthy, natural glow. Subtle pink flush across the cheeks and lips.\n\n**Facial Features:** Striking pale blue-grey eyes with an intense, direct gaze. Strong, defined bone structure with prominent cheekbones and a well-defined jawline. Full, naturally pink lips with a soft, slightly parted expression. Straight nose with a refined bridge. Eyebrows are light blonde, naturally shaped with a subtle arch.\n\n**Expression:** Confident and composed with a hint of intensity. The gaze is focused and self-assured, with a subtle smoldering quality. The overall demeanor projects poise and quiet strength.\n\n**Age:** Appears to be in the late twenties to early thirties.\n\n**Build:** Slender with toned, lean shoulders and a graceful neck. Athletic yet elegant frame with defined collarbones visible.",
+        "characterImagePath": "/api/characters/f48e0550-18a5-46b8-948b-04d8dd737faf/image"
+      },
+      "measured": {
+        "width": 64,
+        "height": 73
+      },
+      "selected": false,
       "dragging": false
     }
   ],
@@ -49,6 +69,6 @@
     }
   ],
   "providerId": "mistral",
-  "updatedAt": 1770882925027,
-  "createdAt": 1770882843076
+  "updatedAt": 1770948404079,
+  "createdAt": 1770948393953
 }

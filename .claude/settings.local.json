@@ -27,7 +27,17 @@
       "Bash(find:*)",
       "Bash(ls -la \"c:\\\\Users\\\\מחשב\\\\Documents\\\\projects\\\\agentic-ide\"\" 2>/dev/null || echo \"Cannot list \")",
       "Bash(git log:*)",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(ls -la \"c:\\\\Users\\\\מחשב\\\\Documents\\\\projects\\\\agentic-ide\\\\agentic-ide-front\\\\components\\\\ui\"\" 2>nul || echo \"No ui components directory found \")",
+      "Bash(ls:*)",
+      "Bash(xargs:*)",
+      "Bash(move:*)",
+      "Bash(powershell -Command:*)",
+      "Bash(pnpm next lint:*)",
+      "Bash(pnpm lint:*)"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\מחשב\\Documents\\projects\\agentic-ide\\agentic-ide-front"
     ]
   }
 }

@@ -1,0 +1,26 @@
+{
+  "id": "a0cf0bc4-cb98-4b9a-9f03-0a0ebcdc7df5",
+  "name": "Flow 3",
+  "nodes": [
+    {
+      "id": "initial-prompt-1",
+      "type": "initialPrompt",
+      "position": {
+        "x": 300,
+        "y": 200
+      },
+      "data": {
+        "label": "Initial Prompt",
+        "text": ""
+      },
+      "measured": {
+        "width": 220,
+        "height": 162
+      }
+    }
+  ],
+  "edges": [],
+  "providerId": "mistral",
+  "updatedAt": 1770948382262,
+  "createdAt": 1770948382262
+}

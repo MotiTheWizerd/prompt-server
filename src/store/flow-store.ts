@@ -97,7 +97,7 @@ function takeSnapshot(flow: FlowData): Snapshot {
   return { nodes: flow.nodes, edges: flow.edges };
 }
 
-// ---- Initial state (empty — dashboard populates after loading) ----
+// ---- Initial state (empty — image-genai page populates after loading) ----
 
 // ---- Store interface ----
 
@@ -118,7 +118,6 @@ interface FlowStoreState {
   setHoveredGroupId: (id: string | null) => void;
 
   // Execution actions (operate on active flow)
-  setProviderId: (providerId: string) => void;
   runFromNode: (triggerNodeId: string) => Promise<void>;
   resetExecution: () => void;
 
@@ -396,17 +395,6 @@ export const useFlowStore = create<FlowStoreState>((set, get) => ({
   },
 
   // --- Execution ---
-
-  setProviderId: (providerId) => {
-    const { activeFlowId, flows } = get();
-    const flow = flows[activeFlowId];
-    if (!flow) return;
-    set({
-      flows: patchFlow(flows, activeFlowId, {
-        execution: { ...flow.execution, providerId },
-      }),
-    });
-  },
 
   resetExecution: () => {
     const { activeFlowId, flows } = get();

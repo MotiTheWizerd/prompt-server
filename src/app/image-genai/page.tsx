@@ -35,15 +35,18 @@ import {
   ImageIcon,
   UserRoundPen,
   HelpCircle,
+  Plus,
 } from "lucide-react";
 import { useFlowStore } from "@/store/flow-store";
 import { nodeTypes } from "@/components/nodes";
 import { getCharacters, type Character } from "@/lib/characters";
-import { ProviderSelect } from "@/components/shared/ProviderSelect";
+import { GeneralDropdown } from "@/components/shared/GeneralDropdown";
+import { Modal } from "@/components/shared/Modal";
 import { TabBar } from "@/components/TabBar";
 import { ImageLightbox } from "@/components/ImageLightbox";
-import { initAutoSave } from "@/lib/auto-save";
-import type { FlowData } from "@/store/types";
+import { useEditorManager, getNextNodeId } from "@/lib/editor-manager";
+import { useUserStore } from "@/store/user-store";
+import { BRAND } from "@/lib/constants";
 
 type SidebarItem = { type: string; label: string; icon: React.ComponentType<{ className?: string }>; color: string };
 type SidebarGroup = { label: string; items: SidebarItem[] };
@@ -99,21 +102,19 @@ function Shortcut({ keys, desc }: { keys: string; desc: string }) {
   );
 }
 
-let nodeId = 100;
-
 // Stable defaults to avoid infinite re-render when store is empty
 const EMPTY_NODES: Node[] = [];
 const EMPTY_EDGES: Edge[] = [];
 
-export default function Dashboard() {
+export default function ImageGenAI() {
   return (
     <ReactFlowProvider>
-      <DashboardInner />
+      <ImageGenAIInner />
     </ReactFlowProvider>
   );
 }
 
-function DashboardInner() {
+function ImageGenAIInner() {
   const nodes = useFlowStore((s) => s.flows[s.activeFlowId]?.nodes ?? EMPTY_NODES);
   const edges = useFlowStore((s) => s.flows[s.activeFlowId]?.edges ?? EMPTY_EDGES);
   const execution = useFlowStore((s) => s.flows[s.activeFlowId]?.execution);
@@ -125,9 +126,40 @@ function DashboardInner() {
     setHoveredGroupId,
     setNodeParent,
     removeNodeFromGroup,
-    setProviderId,
   } = useFlowStore();
   const { screenToFlowPosition, getIntersectingNodes } = useReactFlow();
+  const user = useUserStore((s) => s.user);
+
+  // Editor manager
+  const projects = useEditorManager((s) => s.projects);
+  const activeProjectId = useEditorManager((s) => s.activeProjectId);
+  const selectProject = useEditorManager((s) => s.selectProject);
+  const createProject = useEditorManager((s) => s.createProject);
+
+  // Initialize editor manager on mount
+  useEffect(() => {
+    if (!user) return;
+    useEditorManager.getState().init(user.id);
+  }, [user]);
+
+  // Create project modal
+  const [showCreateProject, setShowCreateProject] = useState(false);
+  const [projectName, setProjectName] = useState("");
+  const [creatingProject, setCreatingProject] = useState(false);
+
+  const handleCreateProject = useCallback(async () => {
+    if (!projectName.trim() || !user) return;
+    setCreatingProject(true);
+    try {
+      await createProject(projectName.trim(), user.id);
+      setProjectName("");
+      setShowCreateProject(false);
+    } catch {
+      // TODO: toast error
+    } finally {
+      setCreatingProject(false);
+    }
+  }, [projectName, user, createProject]);
 
   // Animate only edges connected to running/pending nodes
   const nodeStatus = execution?.nodeStatus;
@@ -164,66 +196,6 @@ function DashboardInner() {
   });
   const toggleSub = useCallback((key: string) => {
     setOpenSubs((prev) => ({ ...prev, [key]: !prev[key] }));
-  }, []);
-
-  // Initialize auto-save and load saved flows on mount
-  useEffect(() => {
-    let stale = false;
-    initAutoSave();
-
-    fetch("/api/flows")
-      .then((r) => r.json())
-      .then(async (data: { flows: { id: string; name: string }[] }) => {
-        if (stale) return;
-
-        if (!data.flows || data.flows.length === 0) {
-          useFlowStore.getState().createFlow("Flow 1");
-          return;
-        }
-        for (const summary of data.flows) {
-          if (stale) return;
-          const res = await fetch(`/api/flows/${summary.id}`);
-          if (!res.ok) continue;
-          const flowJson = await res.json();
-          const flowData: FlowData = {
-            id: flowJson.id,
-            name: flowJson.name,
-            nodes: flowJson.nodes || [],
-            edges: flowJson.edges || [],
-            hoveredGroupId: null,
-            execution: {
-              isRunning: false,
-              nodeStatus: {},
-              nodeOutputs: {},
-              globalError: null,
-              providerId: flowJson.providerId || "mistral",
-            },
-            isDirty: false,
-            lastSavedAt: flowJson.updatedAt || null,
-          };
-          useFlowStore.getState().loadFlowData(flowData);
-        }
-        // Switch to first loaded flow
-        const firstId = data.flows[0].id;
-        useFlowStore.getState().switchFlow(firstId);
-
-        // Sync nodeId counter to avoid duplicate IDs
-        const allFlows = useFlowStore.getState().flows;
-        let maxId = nodeId;
-        for (const flow of Object.values(allFlows)) {
-          for (const node of flow.nodes) {
-            const match = node.id.match(/-(\d+)$/);
-            if (match) maxId = Math.max(maxId, Number(match[1]) + 1);
-          }
-        }
-        nodeId = maxId;
-      })
-      .catch(() => {
-        if (stale) return;
-        useFlowStore.getState().createFlow("Flow 1");
-      });
-
-    return () => { stale = true; };
   }, []);
 
   // Load characters for the Assets section
@@ -293,7 +265,7 @@ function DashboardInner() {
       const charData: Character | null = charRaw ? JSON.parse(charRaw) : null;
 
       const newNode: Node = {
-        id: `${type}-${nodeId++}`,
+        id: `${type}-${getNextNodeId()}`,
         type,
         position,
         data: isGroup
@@ -358,20 +330,61 @@ function DashboardInner() {
   return (
     <div className="h-full flex flex-col bg-gray-950 text-white">
       <ImageLightbox />
+
+      {/* Create Project Modal */}
+      <Modal
+        open={showCreateProject}
+        onClose={() => setShowCreateProject(false)}
+        title="New Project"
+      >
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleCreateProject();
+          }}
+          className="space-y-4"
+        >
+          <div>
+            <label className="block text-xs text-gray-400 mb-1.5">Project name</label>
+            <input
+              type="text"
+              value={projectName}
+              onChange={(e) => setProjectName(e.target.value)}
+              placeholder="My awesome project"
+              autoFocus
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/50"
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={!projectName.trim() || creatingProject}
+            className="w-full py-2 rounded-lg text-sm font-medium bg-blue-600 hover:bg-blue-500 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {creatingProject ? "Creating..." : "Create"}
+          </button>
+        </form>
+      </Modal>
+
       {/* Top bar */}
       <header className="flex items-center px-4 py-2.5 border-b border-gray-800 bg-gray-950/80 backdrop-blur-sm z-10">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
           <h1 className="text-lg font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
-            Prompt Creator
+            {BRAND.name}
           </h1>
           <div className="h-5 w-px bg-gray-700" />
-
-          {/* Provider selector */}
-          <ProviderSelect
-            value={execution?.providerId ?? "mistral"}
-            onChange={setProviderId}
-            disabled={execution?.isRunning}
+          <GeneralDropdown
+            options={[{ value: "", label: "Select project" }, ...projects]}
+            value={activeProjectId}
+            onChange={selectProject}
+            placeholder="Select project"
           />
+          <button
+            onClick={() => setShowCreateProject(true)}
+            title="New project"
+            className="p-1 rounded-md text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+          </button>
         </div>
       </header>
 

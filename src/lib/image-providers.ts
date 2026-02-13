@@ -30,9 +30,7 @@ export interface ImageProvider {
 }
 
 // HF router provider per model (default: "hf-inference")
-const MODEL_ROUTER_PROVIDER: Record<string, string> = {
-  "zai-org/GLM-Image": "fal-ai",
-};
+const MODEL_ROUTER_PROVIDER: Record<string, string> = {};
 
 // === HuggingFace Provider ===
 
@@ -42,7 +40,6 @@ const huggingface: ImageProvider = {
   models: [
     { id: "black-forest-labs/FLUX.1-schnell", name: "FLUX.1 Schnell (fast)" },
     { id: "black-forest-labs/FLUX.1-dev", name: "FLUX.1 Dev (quality)" },
-    { id: "zai-org/GLM-Image", name: "GLM-Image 16B" },
   ],
   async generate(prompt, model, options) {
     const apiKey = process.env.HF_API_KEY;
@@ -91,10 +88,65 @@ const huggingface: ImageProvider = {
   },
 };
 
+// === GLM-Image Provider (Z.AI native API) ===
+
+const glmImage: ImageProvider = {
+  id: "glm-image",
+  name: "GLM-Image (Z.AI)",
+  models: [{ id: "glm-image", name: "GLM-Image" }],
+  async generate(prompt, model, options) {
+    const apiKey = process.env.GLM_API_KEY;
+    if (!apiKey) throw new Error("GLM_API_KEY not set");
+
+    const width = options.width || 1280;
+    const height = options.height || 1280;
+
+    const res = await fetch(
+      "https://api.z.ai/api/paas/v4/images/generations",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model,
+          prompt,
+          size: `${width}x${height}`,
+        }),
+      }
+    );
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "Unknown error");
+      throw new Error(`GLM-Image gen failed (${res.status}): ${errText}`);
+    }
+
+    const json = await res.json();
+    const imageUrl: string | undefined = json?.data?.[0]?.url;
+    if (!imageUrl) {
+      throw new Error("GLM-Image returned no image URL");
+    }
+
+    // Download the image and convert to base64 data URL
+    const imgRes = await fetch(imageUrl);
+    if (!imgRes.ok) {
+      throw new Error(`Failed to download GLM-Image result (${imgRes.status})`);
+    }
+    const buffer = await imgRes.arrayBuffer();
+    const base64 = Buffer.from(buffer).toString("base64");
+    const contentType = imgRes.headers.get("content-type") || "image/png";
+    const imageData = `data:${contentType};base64,${base64}`;
+
+    return { imageData, width, height };
+  },
+};
+
 // === Provider Registry ===
 
 const imageProviderRegistry: Record<string, ImageProvider> = {
   huggingface,
+  "glm-image": glmImage,
 };
 
 export function getImageProvider(providerId: string): ImageProvider {

@@ -58,7 +58,7 @@ const providerConfigs: Record<string, Omit<Provider, "client"> & { baseURL: stri
     textModel: "glm-4.7-flash",
     visionModel: "glm-4.6v",
     supportsVision: true,
-    baseURL: "https://open.bigmodel.cn/api/paas/v4",
+    baseURL: "https://api.z.ai/api/coding/paas/v4",
     apiKeyEnv: "GLM_API_KEY",
     models: glmModels,
   },

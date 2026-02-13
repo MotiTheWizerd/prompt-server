@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AppSidebar } from "@/components/app-sidebar";
+import { isAuthenticated } from "@/lib/auth";
 
-export default function DashboardLayout({
+export default function ImageGenAILayout({
   children,
 }: {
   children: React.ReactNode;
@@ -13,8 +14,8 @@ export default function DashboardLayout({
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    if (sessionStorage.getItem("authenticated") !== "true") {
-      router.replace("/");
+    if (!isAuthenticated()) {
+      router.replace("/login");
     } else {
       setReady(true);
     }

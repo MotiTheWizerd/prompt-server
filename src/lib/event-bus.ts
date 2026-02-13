@@ -9,6 +9,9 @@ export type EventMap = {
   "flow:dirty": { flowId: string };
   "flow:saved": { flowId: string };
 
+  // Editor state
+  "editor:status": { status: "disabled" | "active" };
+
   // Execution lifecycle (per-flow)
   "execution:started": { flowId: string };
   "execution:node-status": {

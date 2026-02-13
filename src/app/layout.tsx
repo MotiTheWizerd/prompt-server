@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AppToaster } from "@/components/shared/AppToaster";
+import { BRAND } from "@/lib/constants";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -14,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Prompt Creator",
-  description: "AI-powered image prompt generation",
+  title: BRAND.name,
+  description: BRAND.description,
 };
 
 export default function RootLayout({

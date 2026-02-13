@@ -193,7 +193,7 @@ export default function PrototypePage() {
       <header className="flex items-center justify-between px-6 py-3 border-b border-gray-800 bg-gray-950/80 backdrop-blur-sm">
         <div className="flex items-center gap-3">
           <Link
-            href="/dashboard"
+            href="/image-genai"
             className="p-1.5 rounded-lg border border-gray-700 text-gray-400 hover:text-white hover:border-gray-600 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />

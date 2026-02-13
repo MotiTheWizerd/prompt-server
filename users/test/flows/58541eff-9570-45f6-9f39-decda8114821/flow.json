@@ -3,37 +3,17 @@
   "name": "Flow 1",
   "nodes": [
     {
-      "id": "initialPrompt-102",
-      "type": "initialPrompt",
-      "position": {
-        "x": -407.38669723662804,
-        "y": 173.26260098827777
-      },
-      "data": {
-        "label": "initialPrompt",
-        "text": "Tupac, legendry rapper close up image, details skin,  capturing his thug life",
-        "adapterCount": 2,
-        "providerId": "claude"
-      },
-      "measured": {
-        "width": 220,
-        "height": 189
-      },
-      "selected": false,
-      "dragging": false
-    },
-    {
-      "id": "consistentCharacter-105",
+      "id": "consistentCharacter-118",
       "type": "consistentCharacter",
       "position": {
-        "x": -443.3942296563338,
-        "y": 27.28508825066303
+        "x": 336.53260869565236,
+        "y": -4.347826086956559
       },
       "data": {
-        "characterId": "16b5dd3c-b80d-454a-9b69-ec89f2ff1d16",
-        "characterName": "2pac",
-        "characterDescription": "**Ethnicity:** African American\n\n**Age:** Mid-to-late 20s\n\n**Build:** Athletic, broad shoulders visible, muscular neck\n\n**Skin:** Medium-brown complexion, smooth and even tone, slight natural sheen on forehead\n\n**Hair:** Very short buzz cut, nearly shaved, dark black, receding slightly at temples, natural hairline with slight widow's peak\n\n**Eyes:** Deep brown, almond-shaped, hooded lids, intense direct gaze, slight natural asymmetry with left eye appearing marginally smaller, visible lower eye bags\n\n**Eyebrows:** Thick, naturally arched, well-defined with clean edges, dark black, slight gap/thin spot in left eyebrow near inner corner\n\n**Face shape:** Oval to rectangular, strong angular jawline, prominent cheekbones, defined bone structure, slightly elongated face\n\n**Nose:** Broad bridge, wide nostrils, rounded tip, medium-sized with visible small nostril piercing on left side (tiny silver stud)\n\n**Lips:** Full, well-defined cupid's bow on upper lip, lower lip fuller than upper, natural medium-pink undertone\n\n**Facial hair:** Thin mustache connecting to a small goatee/soul patch beneath lower lip, sparse stubble along jawline and chin, neatly trimmed\n\n**Distinguishing marks:** Small nose piercing (left nostril), subtle beauty mark/mole visible, ears slightly protruding, pronounced Adam's apple, clean symmetrical features overall, slight five o'clock shadow on lower face\n\n**Expression:** Neutral to subtly confident, relaxed mouth, direct eye contact, composed demeanor",
-        "characterImagePath": "/api/characters/16b5dd3c-b80d-454a-9b69-ec89f2ff1d16/image"
+        "characterId": "0770bdf5-e384-411b-b019-9ae5cdb25de7",
+        "characterName": "test",
+        "characterDescription": "**Ethnicity:** Northern European, likely Scandinavian or Germanic descent\n\n**Age:** 25-30 years\n\n**Build:** Slender frame, narrow shoulders, graceful neck with visible collarbone definition\n\n**Skin:** Fair complexion with warm peachy-pink undertones, smooth texture, minimal visible pores, slight natural flush on cheeks, even tone throughout face and décolletage\n\n**Hair:** Platinum blonde to light golden blonde, fine texture, short pixie-length cut swept back from face, slightly longer on top (2-3 inches), tapered shorter at sides and nape, natural wave pattern, appears soft and wispy\n\n**Eyes:** Large, almond-shaped with slight downward tilt at outer corners, striking blue-gray iris with darker limbal ring, clear whites, long natural lashes with medium density, moderate lid space visible, slightly deep-set\n\n**Eyebrows:** Natural arched shape, medium thickness, tapered at tails, light blonde color matching hair, well-groomed but not overly shaped, sparse inner corners\n\n**Face shape:** Oval to heart-shaped, high prominent cheekbones, defined jawline tapering to slightly pointed chin, balanced proportions, moderate forehead height\n\n**Nose:** Straight bridge with very subtle bump at mid-point, medium width, refined tip with slight upturn, narrow nostrils, proportionate to face\n\n**Lips:** Medium fullness, natural pink tone, defined cupid's bow on upper lip, slightly fuller lower lip, balanced width, smooth texture\n\n**Distinguishing marks:** Light natural freckling across nose bridge and upper cheeks (subtle), slight asymmetry with left eye appearing marginally smaller, natural beauty mark possibilities minimal, clean skin without visible scarring, ears medium-sized with attached lobes visible in profile views\n\n**Facial expressions range:** Neutral resting face shows composed, serene quality; smile reveals straight teeth, creates crow's feet at eye corners, lifts cheekbones prominently; full smile is broad and genuine with visible upper teeth",
+        "characterImagePath": "/api/characters/0770bdf5-e384-411b-b019-9ae5cdb25de7/image"
       },
       "measured": {
         "width": 64,
@@ -43,99 +23,133 @@
       "dragging": false
     },
     {
-      "id": "storyTeller-113",
-      "type": "storyTeller",
+      "id": "initialPrompt-119",
+      "type": "initialPrompt",
       "position": {
-        "x": 219.8547243417804,
-        "y": 63.0934037596881
+        "x": 237.06011398375222,
+        "y": 291.40108090760236
       },
       "data": {
-        "label": "storyTeller",
-        "adapterCount": 1
+        "label": "initialPrompt",
+        "text": "a beautiful woman",
+        "adapterCount": 1,
+        "providerId": "glm",
+        "model": "glm-4.7-flashx"
       },
       "measured": {
-        "width": 280,
-        "height": 179
+        "width": 220,
+        "height": 162
       },
       "selected": false,
       "dragging": false
     },
     {
-      "id": "grammarFix-100",
-      "type": "grammarFix",
+      "id": "promptEnhancer-120",
+      "type": "promptEnhancer",
       "position": {
-        "x": -66.06645337264044,
-        "y": 164.6035195709589
+        "x": 865.9999999999999,
+        "y": 221.01449275362313
       },
       "data": {
-        "label": "grammarFix",
-        "style": ""
+        "label": "promptEnhancer",
+        "notes": "enrich skin, facital details "
       },
       "measured": {
-        "width": 220,
-        "height": 144
+        "width": 230,
+        "height": 152
       },
       "selected": true,
       "dragging": false
     },
     {
-      "id": "compressor-115",
-      "type": "compressor",
+      "id": "imageGenerator-122",
+      "type": "imageGenerator",
       "position": {
-        "x": 626.7605526789998,
-        "y": 174.62379951393171
+        "x": 1449.6866181606072,
+        "y": 55.60762280406544
       },
       "data": {
-        "label": "compressor"
+        "label": "imageGenerator",
+        "model": "black-forest-labs/FLUX.1-dev"
       },
       "measured": {
-        "width": 220,
-        "height": 100
+        "width": 224,
+        "height": 73
       },
       "selected": false,
       "dragging": false
+    },
+    {
+      "id": "imageDescriber-123",
+      "type": "imageDescriber",
+      "position": {
+        "x": 889.3222884857014,
+        "y": -141.56035876187786
+      },
+      "data": {
+        "label": "imageDescriber",
+        "image": "",
+        "providerId": "glm",
+        "model": "glm-4.7-flash"
+      },
+      "measured": {
+        "width": 220,
+        "height": 139
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "consistentCharacter-124",
+      "type": "consistentCharacter",
+      "position": {
+        "x": -162.3767597086062,
+        "y": 450.93274342021226
+      },
+      "data": {
+        "characterId": "0770bdf5-e384-411b-b019-9ae5cdb25de7",
+        "characterName": "test",
+        "characterDescription": "**Ethnicity:** Northern European, likely Scandinavian or Germanic descent\n\n**Age:** 25-30 years\n\n**Build:** Slender frame, narrow shoulders, graceful neck with visible collarbone definition\n\n**Skin:** Fair complexion with warm peachy-pink undertones, smooth texture, minimal visible pores, slight natural flush on cheeks, even tone throughout face and décolletage\n\n**Hair:** Platinum blonde to light golden blonde, fine texture, short pixie-length cut swept back from face, slightly longer on top (2-3 inches), tapered shorter at sides and nape, natural wave pattern, appears soft and wispy\n\n**Eyes:** Large, almond-shaped with slight downward tilt at outer corners, striking blue-gray iris with darker limbal ring, clear whites, long natural lashes with medium density, moderate lid space visible, slightly deep-set\n\n**Eyebrows:** Natural arched shape, medium thickness, tapered at tails, light blonde color matching hair, well-groomed but not overly shaped, sparse inner corners\n\n**Face shape:** Oval to heart-shaped, high prominent cheekbones, defined jawline tapering to slightly pointed chin, balanced proportions, moderate forehead height\n\n**Nose:** Straight bridge with very subtle bump at mid-point, medium width, refined tip with slight upturn, narrow nostrils, proportionate to face\n\n**Lips:** Medium fullness, natural pink tone, defined cupid's bow on upper lip, slightly fuller lower lip, balanced width, smooth texture\n\n**Distinguishing marks:** Light natural freckling across nose bridge and upper cheeks (subtle), slight asymmetry with left eye appearing marginally smaller, natural beauty mark possibilities minimal, clean skin without visible scarring, ears medium-sized with attached lobes visible in profile views\n\n**Facial expressions range:** Neutral resting face shows composed, serene quality; smile reveals straight teeth, creates crow's feet at eye corners, lifts cheekbones prominently; full smile is broad and genuine with visible upper teeth",
+        "characterImagePath": "/api/characters/0770bdf5-e384-411b-b019-9ae5cdb25de7/image"
+      },
+      "measured": {
+        "width": 64,
+        "height": 73
+      }
     }
   ],
   "edges": [
     {
       "animated": true,
-      "source": "consistentCharacter-105",
+      "source": "consistentCharacter-118",
       "sourceHandle": "adapter-out",
-      "target": "initialPrompt-102",
+      "target": "initialPrompt-119",
       "targetHandle": "adapter-0",
       "style": {
         "stroke": "#22c55e",
         "strokeWidth": 2,
         "strokeDasharray": "5 3"
       },
-      "id": "xy-edge__consistentCharacter-105adapter-out-initialPrompt-102adapter-0"
+      "id": "xy-edge__consistentCharacter-118adapter-out-initialPrompt-119adapter-0"
     },
     {
       "animated": true,
-      "source": "initialPrompt-102",
+      "source": "initialPrompt-119",
       "sourceHandle": "text-out",
-      "target": "grammarFix-100",
+      "target": "promptEnhancer-120",
       "targetHandle": "text-in",
-      "id": "xy-edge__initialPrompt-102text-out-grammarFix-100text-in"
+      "id": "xy-edge__initialPrompt-119text-out-promptEnhancer-120text-in"
     },
     {
       "animated": true,
-      "source": "grammarFix-100",
+      "source": "promptEnhancer-120",
       "sourceHandle": "text-out",
-      "target": "storyTeller-113",
+      "target": "imageGenerator-122",
       "targetHandle": "text-in",
-      "id": "xy-edge__grammarFix-100text-out-storyTeller-113text-in"
-    },
-    {
-      "animated": true,
-      "source": "storyTeller-113",
-      "sourceHandle": "text-out",
-      "target": "compressor-115",
-      "targetHandle": "text-in",
-      "id": "xy-edge__storyTeller-113text-out-compressor-115text-in"
+      "id": "xy-edge__promptEnhancer-120text-out-imageGenerator-122text-in"
     }
   ],
   "providerId": "mistral",
-  "updatedAt": 1770937245257,
-  "createdAt": 1770936711816
+  "updatedAt": 1771022298032,
+  "createdAt": 1771022293793
 }
