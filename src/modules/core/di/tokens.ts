@@ -8,7 +8,8 @@
  */
 
 // ---- Core infrastructure ----
-export const EventBus         = Symbol("EventBus");
+export const EventBus           = Symbol("EventBus");
+export const WebSocketManager   = Symbol("WebSocketManager");
 
 // ---- Subsystem managers ----
 export const AutoSaveManager  = Symbol("AutoSaveManager");
@@ -32,6 +33,7 @@ export const EditorManager    = Symbol("EditorManager");
  */
 export const TOKENS = {
   EventBus,
+  WebSocketManager,
   AutoSaveManager,
   UndoManager,
   ExecutorManager,

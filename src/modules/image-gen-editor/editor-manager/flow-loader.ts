@@ -23,7 +23,7 @@ export class FlowLoader {
       return false;
     }
 
-    const res = await api.post("/flows/get-flows", {
+    const res = await api.post("/flows/load-flows", {
       user_id: Number(userId),
       project_id: Number(projectId),
     });

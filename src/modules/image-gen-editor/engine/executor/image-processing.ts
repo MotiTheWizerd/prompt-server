@@ -5,6 +5,7 @@ import { mergeInputText, extractPersonas } from "./utils";
 export const imageDescriber: NodeExecutor = async (ctx) => {
   const { nodeData, providerId, model } = ctx;
   const image = nodeData.image as string;
+  const notes = (nodeData.notes as string) || "";
 
   if (!image) {
     return { success: false, output: { error: "No image uploaded" } };
@@ -19,6 +20,7 @@ export const imageDescriber: NodeExecutor = async (ctx) => {
       images: [{ data: image, filename: "image.jpg", type: "reference" }],
       providerId,
       ...(model && { model }),
+      ...(notes && { text: notes }),
     }),
   });
 

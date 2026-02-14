@@ -14,6 +14,7 @@
 
 import { Container, TOKENS } from "@/modules/core/di";
 import { EventBus, Logger } from "@/modules/core";
+import { WebSocketManager } from "@/modules/websocket";
 
 // Domain types & classes
 import type { EventMap } from "@/modules/image-gen-editor/event-bus";
@@ -43,7 +44,14 @@ export function bootstrap(): Container {
 
   container.register(TOKENS.EventBus, () => {
     log.info("Creating EventBus");
-    return new EventBus<EventMap>("editor-bus");
+    return new EventBus<EventMap>("editor-bus").silence("flow:dirty", "flow:saved");
+  });
+
+  // ---- Tier 1.5: WebSocket (zero deps, core infra) ----
+
+  container.register(TOKENS.WebSocketManager, () => {
+    log.info("Creating WebSocketManager");
+    return new WebSocketManager(new Logger("websocket"));
   });
 
   // ---- Tier 2: Subsystem managers (depend on Tier 1) ----

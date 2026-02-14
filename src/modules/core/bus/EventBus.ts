@@ -14,9 +14,16 @@ type Listener<T> = (payload: T) => void;
 export class EventBus<TEventMap extends Record<string, unknown>> {
   private listeners = new Map<string, Set<Listener<unknown>>>();
   private log: Logger;
+  private quietEvents = new Set<string>();
 
   constructor(name = "event-bus") {
     this.log = new Logger(name);
+  }
+
+  /** Suppress logging for high-frequency events (e.g. "flow:dirty"). */
+  silence(...events: (keyof TEventMap & string)[]): this {
+    for (const e of events) this.quietEvents.add(e);
+    return this;
   }
 
   on<K extends keyof TEventMap & string>(
@@ -34,7 +41,7 @@ export class EventBus<TEventMap extends Record<string, unknown>> {
   }
 
   emit<K extends keyof TEventMap & string>(event: K, payload: TEventMap[K]): void {
-    this.log.info(event, payload);
+    if (!this.quietEvents.has(event)) this.log.info(event, payload);
     const set = this.listeners.get(event);
     if (set) {
       for (const listener of set) {

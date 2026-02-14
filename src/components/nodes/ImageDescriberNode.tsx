@@ -13,6 +13,7 @@ export function ImageDescriberNode({ id, data }: NodeProps) {
   const errorMessage = useFlowStore((s) => s.flows[s.activeFlowId]?.execution.nodeOutputs[id]?.error);
   const outputText = useFlowStore((s) => s.flows[s.activeFlowId]?.execution.nodeOutputs[id]?.text);
   const image = (data.image as string) || "";
+  const notes = (data.notes as string) || "";
   const userProviderId = data.providerId as string | undefined;
   const userModel = data.model as string | undefined;
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -38,6 +39,13 @@ export function ImageDescriberNode({ id, data }: NodeProps) {
           placeholder="Upload Image"
           alt="Image to describe"
           accentColor="pink"
+        />
+        <textarea
+          value={notes}
+          onChange={(e) => updateNodeData(id, { notes: e.target.value })}
+          placeholder="Additional notes for the description..."
+          rows={2}
+          className="w-full bg-gray-800/60 border border-gray-700 rounded-lg px-2.5 py-2 text-xs text-gray-200 placeholder-gray-600 resize-none focus:outline-none focus:ring-1 focus:ring-pink-500/50 focus:border-transparent mt-2"
         />
       </BaseNode>
       {settingsOpen && (
