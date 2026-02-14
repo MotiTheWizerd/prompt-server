@@ -142,11 +142,23 @@ const glmImage: ImageProvider = {
   },
 };
 
+// === Black Forest Labs Provider (backend-routed) ===
+
+const blackforestlabs: ImageProvider = {
+  id: "blackforestlabs",
+  name: "Black Forest Labs",
+  models: [{ id: "flux-kontext-pro", name: "FLUX Kontext Pro" }],
+  async generate() {
+    throw new Error("Black Forest Labs execution is handled by the backend");
+  },
+};
+
 // === Provider Registry ===
 
 const imageProviderRegistry: Record<string, ImageProvider> = {
   huggingface,
   "glm-image": glmImage,
+  blackforestlabs,
 };
 
 export function getImageProvider(providerId: string): ImageProvider {
